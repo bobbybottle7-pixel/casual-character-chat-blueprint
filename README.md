@@ -40,6 +40,46 @@ If you find a bug or have an idea for a new feature, please open a ticket in the
 
 ---
 
+## Building `standalone-app.html`
+
+The app ships in two shapes and only one of them is edited by hand.
+
+* **Multi-file** — `index.html` plus `style.css`, `script.js`, `starter_pack_data.js`, `help.html` and `privacy & terms.html`. This is the source.
+* **Standalone** — `standalone-app.html`, the same app flattened into a single file with nothing linked. Phones refuse to load linked CSS and scripts from a `file://` page, so this is the shape that works when someone just opens the file.
+
+`standalone-app.html` is **generated**. Do not edit it directly — the next build overwrites it. After changing any source file, regenerate it:
+
+```bash
+node build/build-standalone.js          # writes casual-character-chat-app/standalone-app.html
+node build/build-standalone.js --check  # verifies the committed file is current; exits 1 if not
+```
+
+The build needs Node (any version with `crypto`, so v14+) and nothing else — no dependencies, no install step.
+
+### What the build does
+
+1. Inlines `style.css` into a `<style>` block and `starter_pack_data.js` + `script.js` into `<script>` blocks, stripping the UTF-8 BOM that editors keep adding to the latter two.
+2. Appends `build/standalone-extra.css` to the inlined stylesheet.
+3. Turns `help.html` and `privacy & terms.html` into two panels (`#help-page-modal`, `#privacy-page-modal`) appended before `</body>`, and rewires the two footer links to open them instead of navigating away.
+4. Rewrites the parts of `help.html` that only make sense in the multi-file version — the "copy the whole folder" instructions become "copy this one file" — from `build/help-standalone-patches.json`.
+5. Renames the help page's find-on-page widget ids (`search-input` → `help-search-input`, and so on) and scopes its search to the modal, since inside the app those generic ids and a `document.body` search would collide with the app itself.
+
+### The one thing that is not automatic
+
+`help.html` and `privacy & terms.html` are ordinary web pages with their own `<style>` blocks, written for a page where they are the only thing on it — they style bare `body`, `.container`, `h1`. Inside the standalone they are panels, so those rules are repeated in `build/standalone-extra.css` scoped to `#help-page-modal` / `#privacy-page-modal`, where they cannot reach the app around them.
+
+Nothing keeps the two copies in sync. `build/standalone-extra.css` therefore records a fingerprint of each page's `<style>` block, and the build refuses to run when a page's styles change without the scoped copy changing too:
+
+```
+! help page's <style> block changed (526b5481bb1ef774 -> 3f6af6c2cbf2add0).
+```
+
+When that happens, mirror the change in `build/standalone-extra.css` and update the fingerprint to the new value the message gives you.
+
+The build aborts rather than writing a half-converted file whenever a source no longer matches what it expects, so a failure is always a real change to reconcile, never something to work around.
+
+---
+
 ## 1. The Main Screen: Character Selection
 
 This is the first screen you see when you open the app. From here, you can access all of your characters and core features.
