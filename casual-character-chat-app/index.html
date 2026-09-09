@@ -54,6 +54,7 @@
         <h3>⭐ Favorites</h3>
 
         <div class="header-right-group">
+            <button id="mature-mode-btn" title="Adult Mode (18+): show and manage adult-rated characters" aria-pressed="false">🔞 Adult Mode: Off</button>
             <button id="manage-personas-btn" title="Create and edit your Personas for chat">🎭 Manage Personas</button>
             <button id="app-settings-btn" title="Global AI model settings">⚙️ Global App Settings</button>
             <button id="export-btn" title="Export all your Characters, Personas, and Models">⬇️ Export Data</button>
@@ -67,6 +68,15 @@
     <div id="search-bar-container">
     <input type="search" id="search-input" placeholder="🔎 Search Name...">
     <input type="search" id="tag-search-input" placeholder="🔎 Search Tag...">
+    <div id="maturity-filter-container" class="hidden">
+        <label for="maturity-filter" class="visually-hidden">Filter by content rating</label>
+        <select id="maturity-filter" title="Filter by content rating">
+            <option value="all">🔞 All ratings</option>
+            <option value="general">General only</option>
+            <option value="mature">Mature</option>
+            <option value="explicit">Explicit</option>
+        </select>
+    </div>
 </div>
     <div id="random-chat-container">
         <button id="random-chat-btn" title="Start a new chat with a random character and a random mood">🎲 Random Chat</button>
@@ -429,6 +439,17 @@
     </label>
 </div>
 
+                <div class="form-group" id="editor-maturity-section" hidden>
+    <label for="char-maturity">Content Rating:
+        <span class="setting-info-icon" data-tooltip="How this card is rated. 'Mature' and 'Explicit' cards are only shown while Adult Mode is on. This is a label for filtering — it does not change the AI's behaviour.">ℹ️</span>
+    </label>
+    <select id="char-maturity">
+        <option value="general">General</option>
+        <option value="mature">Mature (18+)</option>
+        <option value="explicit">Explicit (18+)</option>
+    </select>
+</div>
+
                 <div class="form-row">
     <div class="form-group">
         <label for="card-name" id="card-name-label">Card Name:</label>
@@ -735,6 +756,28 @@
         </form>
     </div>
 </div>
+
+<!-- ===================== 18+ AGE GATE ===================== -->
+<div id="age-gate-modal" class="hidden">
+    <div class="modal-content" id="age-gate-content" role="dialog" aria-modal="true" aria-labelledby="age-gate-title">
+        <h2 id="age-gate-title">🔞 Adult Mode</h2>
+        <p class="age-gate-lead">Adult Mode reveals characters you have rated <strong>Mature</strong> or <strong>Explicit</strong> and adds content-rating controls to the editor.</p>
+        <ul class="age-gate-points">
+            <li>This mode is intended for <strong>adults aged 18 or older</strong>.</li>
+            <li>All of your characters and chats stay on this device only — nothing is uploaded. Use <strong>Export Data</strong> to back them up.</li>
+            <li>You are responsible for the content you create and for complying with the terms of any AI model provider you connect.</li>
+        </ul>
+        <label class="age-gate-confirm">
+            <input type="checkbox" id="age-gate-checkbox">
+            <span>I confirm that I am 18 years of age or older.</span>
+        </label>
+        <div class="form-buttons">
+            <button type="button" id="age-gate-confirm-btn" disabled>Enable Adult Mode</button>
+            <button type="button" id="age-gate-cancel-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- =================== END 18+ AGE GATE =================== -->
 
 <!-- ===================== IMAGE ADJUST (crop / zoom / pan) ===================== -->
 <div id="image-crop-modal" class="hidden">

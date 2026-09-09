@@ -7082,6 +7082,100 @@ body.image-gen-off .generate-image-btn {
     pointer-events: none;
 }
 
+/* ── Content-rating badge (Adult Mode) ── */
+/* Bottom-left, so it never collides with the favorite (top-right), archive /
+   world badge (top-left), or world char-count (bottom-right). */
+.maturity-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 3;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+.maturity-badge--mature {
+    background: rgba(200, 120, 40, 0.8);
+}
+.maturity-badge--explicit {
+    background: rgba(200, 55, 70, 0.82);
+}
+
+/* ── Adult Mode toggle button (main header) ── */
+#mature-mode-btn.is-active {
+    background: rgba(200, 55, 70, 0.28);
+    border-color: rgba(230, 90, 110, 0.6);
+    color: #ffd9df;
+}
+
+/* ── Content-rating filter (character list) ── */
+#maturity-filter-container {
+    display: flex;
+    align-items: center;
+}
+#maturity-filter {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #dcddde;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+/* ── 18+ age gate ── */
+#age-gate-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.68);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2300;
+    padding: 16px;
+}
+#age-gate-modal.hidden {
+    display: none;
+}
+#age-gate-content {
+    max-width: 520px;
+    width: min(520px, 94vw);
+}
+#age-gate-content .age-gate-lead {
+    margin-bottom: 12px;
+}
+#age-gate-content .age-gate-points {
+    margin: 0 0 16px;
+    padding-left: 20px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: rgba(220, 221, 222, 0.9);
+}
+#age-gate-content .age-gate-points li {
+    margin-bottom: 8px;
+}
+#age-gate-content .age-gate-confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#age-gate-content .age-gate-confirm input {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+#age-gate-confirm-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* World indicator in chat header */
 #chat-world-badge {
     font-size: 0.6rem;
@@ -8329,6 +8423,7 @@ mark.highlight.current-match {
         <h3>⭐ Favorites</h3>
 
         <div class="header-right-group">
+            <button id="mature-mode-btn" title="Adult Mode (18+): show and manage adult-rated characters" aria-pressed="false">🔞 Adult Mode: Off</button>
             <button id="manage-personas-btn" title="Create and edit your Personas for chat">🎭 Manage Personas</button>
             <button id="app-settings-btn" title="Global AI model settings">⚙️ Global App Settings</button>
             <button id="export-btn" title="Export all your Characters, Personas, and Models">⬇️ Export Data</button>
@@ -8342,6 +8437,15 @@ mark.highlight.current-match {
     <div id="search-bar-container">
     <input type="search" id="search-input" placeholder="🔎 Search Name...">
     <input type="search" id="tag-search-input" placeholder="🔎 Search Tag...">
+    <div id="maturity-filter-container" class="hidden">
+        <label for="maturity-filter" class="visually-hidden">Filter by content rating</label>
+        <select id="maturity-filter" title="Filter by content rating">
+            <option value="all">🔞 All ratings</option>
+            <option value="general">General only</option>
+            <option value="mature">Mature</option>
+            <option value="explicit">Explicit</option>
+        </select>
+    </div>
 </div>
     <div id="random-chat-container">
         <button id="random-chat-btn" title="Start a new chat with a random character and a random mood">🎲 Random Chat</button>
@@ -8704,6 +8808,17 @@ mark.highlight.current-match {
     </label>
 </div>
 
+                <div class="form-group" id="editor-maturity-section" hidden>
+    <label for="char-maturity">Content Rating:
+        <span class="setting-info-icon" data-tooltip="How this card is rated. 'Mature' and 'Explicit' cards are only shown while Adult Mode is on. This is a label for filtering — it does not change the AI's behaviour.">ℹ️</span>
+    </label>
+    <select id="char-maturity">
+        <option value="general">General</option>
+        <option value="mature">Mature (18+)</option>
+        <option value="explicit">Explicit (18+)</option>
+    </select>
+</div>
+
                 <div class="form-row">
     <div class="form-group">
         <label for="card-name" id="card-name-label">Card Name:</label>
@@ -9010,6 +9125,28 @@ mark.highlight.current-match {
         </form>
     </div>
 </div>
+
+<!-- ===================== 18+ AGE GATE ===================== -->
+<div id="age-gate-modal" class="hidden">
+    <div class="modal-content" id="age-gate-content" role="dialog" aria-modal="true" aria-labelledby="age-gate-title">
+        <h2 id="age-gate-title">🔞 Adult Mode</h2>
+        <p class="age-gate-lead">Adult Mode reveals characters you have rated <strong>Mature</strong> or <strong>Explicit</strong> and adds content-rating controls to the editor.</p>
+        <ul class="age-gate-points">
+            <li>This mode is intended for <strong>adults aged 18 or older</strong>.</li>
+            <li>All of your characters and chats stay on this device only — nothing is uploaded. Use <strong>Export Data</strong> to back them up.</li>
+            <li>You are responsible for the content you create and for complying with the terms of any AI model provider you connect.</li>
+        </ul>
+        <label class="age-gate-confirm">
+            <input type="checkbox" id="age-gate-checkbox">
+            <span>I confirm that I am 18 years of age or older.</span>
+        </label>
+        <div class="form-buttons">
+            <button type="button" id="age-gate-confirm-btn" disabled>Enable Adult Mode</button>
+            <button type="button" id="age-gate-cancel-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+<!-- =================== END 18+ AGE GATE =================== -->
 
 <!-- ===================== IMAGE ADJUST (crop / zoom / pan) ===================== -->
 <div id="image-crop-modal" class="hidden">
@@ -18263,6 +18400,57 @@ const OPENROUTER_REASONING_EFFORTS = new Set([
     'max'
 ]);
 
+// --- Mature mode & content rating -------------------------------------------
+// A per-device layer. It gates whether adult-rated characters are shown and
+// whether the content-rating controls appear; it does NOT change any prompt or
+// generate any content. State lives in localStorage (a device preference, not
+// exported data) so it survives reloads and is never clobbered by the
+// app-settings save, which rebuilds appSettings from scratch.
+//
+//   general  - default; always visible.
+//   mature   - suggestive / adult themes; hidden until mature mode is on.
+//   explicit - explicit adult content; hidden until mature mode is on.
+const MATURITY_ORDER = ['general', 'mature', 'explicit'];
+const MATURITY_META = Object.freeze({
+    general:  { label: 'General',  badge: '',    badgeClass: '' },
+    mature:   { label: 'Mature',   badge: '18+', badgeClass: 'maturity-badge--mature' },
+    explicit: { label: 'Explicit', badge: '18+', badgeClass: 'maturity-badge--explicit' }
+});
+const MATURE_MODE_KEY = 'cccMatureMode';       // '1' when the user has turned it on
+const AGE_AFFIRMED_KEY = 'cccMatureAgeAffirmed'; // '1' once the 18+ affirmation is recorded
+
+// localStorage can throw (private mode, blocked storage). Every read/write is
+// guarded and falls back to a safe "off / not affirmed" state.
+function isMatureModeEnabled() {
+    try { return localStorage.getItem(MATURE_MODE_KEY) === '1'; }
+    catch (_) { return false; }
+}
+function isAgeAffirmed() {
+    try { return localStorage.getItem(AGE_AFFIRMED_KEY) === '1'; }
+    catch (_) { return false; }
+}
+function recordAgeAffirmation() {
+    try { localStorage.setItem(AGE_AFFIRMED_KEY, '1'); } catch (_) {}
+}
+function setMatureModeEnabled(on) {
+    try {
+        if (on) localStorage.setItem(MATURE_MODE_KEY, '1');
+        else localStorage.removeItem(MATURE_MODE_KEY);
+    } catch (_) {}
+}
+
+// Normalizes whatever is stored on a card (missing, legacy, or hand-edited via
+// import) to one of the three known levels. Anything unrecognized is 'general'.
+function getCharacterMaturity(character) {
+    const raw = character && typeof character.maturity === 'string'
+        ? character.maturity.toLowerCase().trim()
+        : '';
+    return MATURITY_ORDER.includes(raw) ? raw : 'general';
+}
+function isCharacterMature(character) {
+    return getCharacterMaturity(character) !== 'general';
+}
+
 function isOpenRouterChatCompletionsUrl(value) {
     try {
         const url = new URL(value);
@@ -20246,7 +20434,12 @@ function renderCharacterList(searchTerm = '') {
         return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
     });
 
-    const favoriteCharacters = allSortedCharacters.filter(char => char.isFavorite && !char.isArchived); 
+    // When Adult Mode is off, adult-rated cards are hidden everywhere in the
+    // list (favorites bar included), so nothing reveals them until it is on.
+    const matureModeOn = isMatureModeEnabled();
+    const passesMatureGate = (char) => matureModeOn || !isCharacterMature(char);
+
+    const favoriteCharacters = allSortedCharacters.filter(char => char.isFavorite && !char.isArchived && passesMatureGate(char));
     if (favoriteCharacters.length > 0) {
         favoritesContainer.classList.remove('hidden');
         favoriteCharacters.forEach((character, index) => {
@@ -20279,7 +20472,14 @@ if (favImageSource) {
     const nameSearchTerm = document.getElementById('search-input').value.toLowerCase();
 const tagSearchTerm = document.getElementById('tag-search-input').value.toLowerCase();
 
+// The maturity filter only applies while Adult Mode is on; off, the gate
+// above already restricts the list to General cards.
+const maturityFilterEl = document.getElementById('maturity-filter');
+const maturityFilter = (matureModeOn && maturityFilterEl) ? maturityFilterEl.value : 'all';
+
 const filteredCharacters = allSortedCharacters.filter(char => {
+    if (!passesMatureGate(char)) return false;
+    if (maturityFilter !== 'all' && getCharacterMaturity(char) !== maturityFilter) return false;
     const nameMatch = char.name.toLowerCase().includes(nameSearchTerm);
     const tagsMatch = (char.tags || '').toLowerCase().includes(tagSearchTerm);
     return nameMatch && tagsMatch;
@@ -20305,6 +20505,13 @@ const filteredCharacters = allSortedCharacters.filter(char => {
         const imageUrl = getImageUrl(cardImageSource);
         const placeholderContent = isWorldCard ? '<div class="world-card-placeholder">🌍</div>' : '<div class="placeholder-icon">👤</div>';
         const worldBadgeHtml = isWorldCard ? `<span class="world-badge">World</span>` : '';
+        // Rating badge, shown only inside Adult Mode so General browsing stays
+        // visually unchanged. General cards never carry a badge.
+        const maturityLevel = getCharacterMaturity(character);
+        const maturityMeta = MATURITY_META[maturityLevel];
+        const maturityBadgeHtml = (matureModeOn && maturityMeta && maturityMeta.badge)
+            ? `<span class="maturity-badge ${maturityMeta.badgeClass}" title="${maturityMeta.label}">${maturityMeta.badge}</span>`
+            : '';
         // Count only characters that still exist, mirroring the chat-participant
         // logic. Stale/duplicate IDs (e.g. left behind after copying a world)
         // must not inflate the count shown on the card.
@@ -20318,6 +20525,7 @@ const filteredCharacters = allSortedCharacters.filter(char => {
             <button class="archive-btn" title="${archiveButtonTitle}">${archiveButtonIcon}</button>
             <div class="card-image-container effect-container">
     ${worldBadgeHtml}
+    ${maturityBadgeHtml}
     <img src="${imageUrl}" alt="Avatar" class="${cardImageSource ? '' : 'hidden'}" onerror="this.classList.add('is-broken')">
     ${cardImageSource ? '' : placeholderContent}
     ${worldCharCountHtml}
@@ -24151,6 +24359,13 @@ document.getElementById('open-world-char-picker-btn').addEventListener('click', 
     }
 
 
+    // The content-rating control only makes sense while Adult Mode is on. When
+    // off it is hidden, but the card keeps whatever rating it already had.
+    function updateEditorMaturityVisibility() {
+        const section = document.getElementById('editor-maturity-section');
+        if (section) section.hidden = !isMatureModeEnabled();
+    }
+
     function openEditorForNew() {
     tempUploadedImages = {};
     resetEditorGallery([]);
@@ -24170,6 +24385,9 @@ document.getElementById('open-world-char-picker-btn').addEventListener('click', 
     if (flatLoreRadio) flatLoreRadio.checked = true;
     updateEditorForLoreMode('flat');
     editingCharField.value = '';
+    const maturitySelectNew = document.getElementById('char-maturity');
+    if (maturitySelectNew) maturitySelectNew.value = 'general';
+    updateEditorMaturityVisibility();
     document.getElementById('chat-list-screen').style.backgroundImage = 'none';
     editorAvatarImg.src = '';
     editorAvatarImg.classList.add('hidden');
@@ -24264,9 +24482,13 @@ if (editorDisplayUrl) {
   }
   updateEditorForLoreMode(loreMode);
 
+  const maturitySelectEdit = document.getElementById('char-maturity');
+  if (maturitySelectEdit) maturitySelectEdit.value = getCharacterMaturity(character);
+  updateEditorMaturityVisibility();
+
   editingCharField.value = currentCharacterId;
   updateEditorTokenCount();
-  
+
   characterEditorModal.classList.remove('hidden');
 
   setTimeout(() => {
@@ -24792,6 +25014,9 @@ async function setActivePersonaForChat(personaId) {
   const reminder = document.getElementById('char-reminder').value;
   const narratorReminder = document.getElementById('char-narrator-reminder').value;
   const musicUrl = document.getElementById('char-music-url').value.trim();
+  const maturitySelectEl = document.getElementById('char-maturity');
+  const maturity = maturitySelectEl && MATURITY_ORDER.includes(maturitySelectEl.value)
+      ? maturitySelectEl.value : 'general';
   const characterIds = cardType === 'world' ? Array.from(worldCharSelectedIds) : [];
   const scenarioEntries = document.querySelectorAll('#scenario-editor-list .scenario-entry');
   const scenarios = [];
@@ -24840,6 +25065,7 @@ async function setActivePersonaForChat(personaId) {
     character.musicUrl = musicUrl;
     character.scenarios = scenarios;
     character.type = cardType;
+    character.maturity = maturity;
     character.characterIds = characterIds;
     await saveSingleCharacterToDB(character);
   } else {
@@ -24861,6 +25087,7 @@ async function setActivePersonaForChat(personaId) {
       musicUrl: musicUrl,
       scenarios: scenarios,
       type: cardType,
+      maturity: maturity,
       characterIds: characterIds,
       chats: {}
     };
@@ -28694,6 +28921,90 @@ resetAppSettingsBtn.addEventListener('click', resetAppSettings);
 
 
 
+// --- Mature mode UI wiring --------------------------------------------------
+// The toggle button reflects state; enabling for the first time routes through
+// the 18+ age gate, after which the affirmation is remembered on this device.
+const matureModeBtn = document.getElementById('mature-mode-btn');
+const ageGateModal = document.getElementById('age-gate-modal');
+const ageGateCheckbox = document.getElementById('age-gate-checkbox');
+const ageGateConfirmBtn = document.getElementById('age-gate-confirm-btn');
+const ageGateCancelBtn = document.getElementById('age-gate-cancel-btn');
+
+// Reflects mature-mode state across every surface that depends on it: the
+// header button, the maturity filter visibility, and the character list (so
+// adult-rated cards appear or disappear immediately).
+function refreshMatureModeUI() {
+    const on = isMatureModeEnabled();
+    if (matureModeBtn) {
+        matureModeBtn.textContent = on ? '🔞 Adult Mode: On' : '🔞 Adult Mode: Off';
+        matureModeBtn.classList.toggle('is-active', on);
+        matureModeBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    const filterWrap = document.getElementById('maturity-filter-container');
+    if (filterWrap) filterWrap.classList.toggle('hidden', !on);
+    // Editor section is toggled when the editor opens; nothing to do here.
+    renderCharacterList(searchInput.value.trim());
+}
+
+function closeAgeGate() {
+    if (ageGateModal) ageGateModal.classList.add('hidden');
+    if (ageGateCheckbox) ageGateCheckbox.checked = false;
+    if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = true;
+}
+
+function openAgeGate() {
+    if (!ageGateModal) return;
+    if (ageGateCheckbox) ageGateCheckbox.checked = false;
+    if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = true;
+    ageGateModal.classList.remove('hidden');
+}
+
+if (matureModeBtn) {
+    matureModeBtn.addEventListener('click', () => {
+        if (isMatureModeEnabled()) {
+            // Turning it off never needs the gate.
+            setMatureModeEnabled(false);
+            refreshMatureModeUI();
+        } else if (isAgeAffirmed()) {
+            // Affirmation is remembered — enable straight away.
+            setMatureModeEnabled(true);
+            refreshMatureModeUI();
+        } else {
+            openAgeGate();
+        }
+    });
+}
+if (ageGateCheckbox) {
+    ageGateCheckbox.addEventListener('change', () => {
+        if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = !ageGateCheckbox.checked;
+    });
+}
+if (ageGateConfirmBtn) {
+    ageGateConfirmBtn.addEventListener('click', () => {
+        if (!ageGateCheckbox || !ageGateCheckbox.checked) return;
+        recordAgeAffirmation();
+        setMatureModeEnabled(true);
+        closeAgeGate();
+        refreshMatureModeUI();
+    });
+}
+if (ageGateCancelBtn) {
+    ageGateCancelBtn.addEventListener('click', closeAgeGate);
+}
+if (ageGateModal) {
+    ageGateModal.addEventListener('click', (e) => {
+        if (e.target === ageGateModal) closeAgeGate();
+    });
+}
+const maturityFilterSelect = document.getElementById('maturity-filter');
+if (maturityFilterSelect) {
+    maturityFilterSelect.addEventListener('change', () => {
+        renderCharacterList(searchInput.value.trim());
+    });
+}
+
+
+
 async function toggleArchiveState(charId) {
     const character = characters[charId];
     if (!character) return;
@@ -29649,6 +29960,7 @@ async function initializeApp() {
         }
         enforceResponsiveSettingLimits();
         renderCharacterList();
+        refreshMatureModeUI();
         restoreLastSession();
         tutorialInit();
     } catch (error) {
@@ -30381,6 +30693,7 @@ No one else, including the developer, can access your characters or conversation
     <p>The header provides access to the app's main functions:</p>
     <ul>
         <li><strong>🤖 + Create Character:</strong> Click this to open the Character Editor and start building a new AI character from scratch.</li>
+        <li><strong>🔞 Adult Mode:</strong> An optional switch (18+ only). Off by default. When on, it reveals characters you have rated <em>Mature</em> or <em>Explicit</em> and adds a content-rating filter and editor field. See the section below.</li>
         <li><strong>🎭 Manage Personas:</strong> This opens a panel where you can create and manage your different user profiles, or "Personas". A Persona defines who <em>you</em> are in a chat.</li>
         <li><strong>⚙️ Global App Settings:</strong> Here you have to enter your personal (global) API key at the top of the section. It is recommended to use an OpenRouter API as your provider, but you can also enter API keys from other providers for specific models and manage the list of available AI models here. As long as you enter the correct provider URL and provider-specific model-ID, any provider will work.</li>        
         <li><strong>⬆️ Import / ⬇️ Export:</strong> These buttons allow you to save your entire collection of characters and personas into a single <code>.json</code> file for backup. All AI models and global model prompts are included in the backup. You can use the Import button to load all your data back into the app on any computer. ALSO: You can import any Character Cards from other online platforms, both PNG and JSON - try it!</li>
@@ -30397,6 +30710,17 @@ No one else, including the developer, can access your characters or conversation
         <li><strong>Search Name:</strong> Filters the character list in real-time as you type a character's name.</li>
         <li><strong>Search Tag:</strong> Filters the list based on the tags you've assigned to your characters in the editor.</li>
     </ul>
+
+    <h3>🔞 Adult Mode (18+)</h3>
+    <p>Adult Mode is an optional, off-by-default switch in the header, intended <strong>only for adults aged 18 or older</strong>. The first time you turn it on, you'll be asked to confirm your age; that confirmation is remembered on this device so you won't be asked again unless you clear your browser data.</p>
+    <p>What it changes:</p>
+    <ul>
+        <li><strong>Content ratings:</strong> In the Character Editor you can rate each card <em>General</em>, <em>Mature</em>, or <em>Explicit</em>. The rating is only a label you assign for your own organisation — it does <strong>not</strong> change how the AI responds and does not remove any moderation your AI provider applies.</li>
+        <li><strong>Visibility:</strong> While Adult Mode is <em>off</em>, cards rated Mature or Explicit are hidden everywhere in the list (including Favorites). Turn it on to see and manage them; turn it off to hide them again.</li>
+        <li><strong>Filtering:</strong> A content-rating dropdown appears next to the search bars so you can show all ratings or narrow to one.</li>
+        <li><strong>Badges:</strong> Adult-rated cards show a small rating badge while Adult Mode is on.</li>
+    </ul>
+    <p>Everything stays on your device, exactly like the rest of your data. You are responsible for the content you create and for complying with the terms of any AI provider you connect.</p>
 
     <h3>The Character List & Character Cards</h3>
     <p>This is the main area where all of your non-archived characters are displayed as individual cards, automatically sorted in alphabetical order. Clicking a card takes you to that character's chat dashboard. When you hover over a card, two buttons appear:</p>
@@ -30996,6 +31320,11 @@ document.addEventListener('DOMContentLoaded', () => {
             Casual Character Chat is a passion project created to give everyone access to a private, uncensored, and independent AI companion experience. It costs nothing and is offered freely. No company, no subscription, no data harvesting — just a tool that belongs to you.
         </p>
 
+        <p style="background-color: #3a1e24; border-left: 4px solid #e05a6e; padding: 12px 18px; border-radius: 4px; margin-bottom: 30px;">
+            <strong style="color: #ff9aa8;">🔞 Adult Mode is for adults 18+ only.</strong><br>
+            The app includes an optional <strong>Adult Mode</strong> that reveals characters you have rated <strong>Mature</strong> or <strong>Explicit</strong>. It is intended solely for adults aged 18 or older. Enabling it requires confirming your age, and you remain responsible for the content you create and for complying with the terms of any AI provider you connect. Adult Mode changes only what is shown and how cards are filtered — it does not alter the AI's behaviour or remove any provider's own moderation.
+        </p>
+
         <h2>Privacy Policy</h2>
         <section>
             <h3>Our Philosophy: Your Data is Your Own</h3>
@@ -31056,13 +31385,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </p>
         </section>
         <section>
-            <h3>4. Disclaimer of Warranties and Limitation of Liability</h3>
+            <h3>4. Adult Mode & Age Requirement (18+)</h3>
+            <p>
+                The App includes an optional <strong>Adult Mode</strong>. It is disabled by default. Turning it on reveals characters that you have rated <strong>Mature</strong> or <strong>Explicit</strong> and shows content-rating controls in the editor.
+            </p>
+            <p>
+                Adult Mode is intended <strong>only for adults aged 18 years or older</strong> (or the age of majority in your jurisdiction, if higher). By enabling it you confirm that you meet this requirement. Content ratings are labels you assign for your own filtering; they do not change how any AI model responds, and they do not remove any moderation applied by your chosen AI provider. You are solely responsible for the characters and content you create and for using the App in compliance with all applicable laws and the terms of any third-party service you connect.
+            </p>
+        </section>
+        <section>
+            <h3>5. Disclaimer of Warranties and Limitation of Liability</h3>
             <p>
                 The developer provides the App without any warranties of performance, reliability, or fitness for a particular purpose. The developer is not liable for any damages, including but not limited to data loss, financial loss from API usage, or service interruptions. You use the App at your own risk. The developer is not responsible for the availability or conduct of any third-party services such as OpenRouter.
             </p>
         </section>
         <section>
-            <h3>5. Governing Law</h3>
+            <h3>6. Governing Law</h3>
             <p>These terms shall be governed by the laws of Austria.</p>
         </section>
 

@@ -267,6 +267,57 @@ const OPENROUTER_REASONING_EFFORTS = new Set([
     'max'
 ]);
 
+// --- Mature mode & content rating -------------------------------------------
+// A per-device layer. It gates whether adult-rated characters are shown and
+// whether the content-rating controls appear; it does NOT change any prompt or
+// generate any content. State lives in localStorage (a device preference, not
+// exported data) so it survives reloads and is never clobbered by the
+// app-settings save, which rebuilds appSettings from scratch.
+//
+//   general  - default; always visible.
+//   mature   - suggestive / adult themes; hidden until mature mode is on.
+//   explicit - explicit adult content; hidden until mature mode is on.
+const MATURITY_ORDER = ['general', 'mature', 'explicit'];
+const MATURITY_META = Object.freeze({
+    general:  { label: 'General',  badge: '',    badgeClass: '' },
+    mature:   { label: 'Mature',   badge: '18+', badgeClass: 'maturity-badge--mature' },
+    explicit: { label: 'Explicit', badge: '18+', badgeClass: 'maturity-badge--explicit' }
+});
+const MATURE_MODE_KEY = 'cccMatureMode';       // '1' when the user has turned it on
+const AGE_AFFIRMED_KEY = 'cccMatureAgeAffirmed'; // '1' once the 18+ affirmation is recorded
+
+// localStorage can throw (private mode, blocked storage). Every read/write is
+// guarded and falls back to a safe "off / not affirmed" state.
+function isMatureModeEnabled() {
+    try { return localStorage.getItem(MATURE_MODE_KEY) === '1'; }
+    catch (_) { return false; }
+}
+function isAgeAffirmed() {
+    try { return localStorage.getItem(AGE_AFFIRMED_KEY) === '1'; }
+    catch (_) { return false; }
+}
+function recordAgeAffirmation() {
+    try { localStorage.setItem(AGE_AFFIRMED_KEY, '1'); } catch (_) {}
+}
+function setMatureModeEnabled(on) {
+    try {
+        if (on) localStorage.setItem(MATURE_MODE_KEY, '1');
+        else localStorage.removeItem(MATURE_MODE_KEY);
+    } catch (_) {}
+}
+
+// Normalizes whatever is stored on a card (missing, legacy, or hand-edited via
+// import) to one of the three known levels. Anything unrecognized is 'general'.
+function getCharacterMaturity(character) {
+    const raw = character && typeof character.maturity === 'string'
+        ? character.maturity.toLowerCase().trim()
+        : '';
+    return MATURITY_ORDER.includes(raw) ? raw : 'general';
+}
+function isCharacterMature(character) {
+    return getCharacterMaturity(character) !== 'general';
+}
+
 function isOpenRouterChatCompletionsUrl(value) {
     try {
         const url = new URL(value);
@@ -2250,7 +2301,12 @@ function renderCharacterList(searchTerm = '') {
         return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
     });
 
-    const favoriteCharacters = allSortedCharacters.filter(char => char.isFavorite && !char.isArchived); 
+    // When Adult Mode is off, adult-rated cards are hidden everywhere in the
+    // list (favorites bar included), so nothing reveals them until it is on.
+    const matureModeOn = isMatureModeEnabled();
+    const passesMatureGate = (char) => matureModeOn || !isCharacterMature(char);
+
+    const favoriteCharacters = allSortedCharacters.filter(char => char.isFavorite && !char.isArchived && passesMatureGate(char));
     if (favoriteCharacters.length > 0) {
         favoritesContainer.classList.remove('hidden');
         favoriteCharacters.forEach((character, index) => {
@@ -2283,7 +2339,14 @@ if (favImageSource) {
     const nameSearchTerm = document.getElementById('search-input').value.toLowerCase();
 const tagSearchTerm = document.getElementById('tag-search-input').value.toLowerCase();
 
+// The maturity filter only applies while Adult Mode is on; off, the gate
+// above already restricts the list to General cards.
+const maturityFilterEl = document.getElementById('maturity-filter');
+const maturityFilter = (matureModeOn && maturityFilterEl) ? maturityFilterEl.value : 'all';
+
 const filteredCharacters = allSortedCharacters.filter(char => {
+    if (!passesMatureGate(char)) return false;
+    if (maturityFilter !== 'all' && getCharacterMaturity(char) !== maturityFilter) return false;
     const nameMatch = char.name.toLowerCase().includes(nameSearchTerm);
     const tagsMatch = (char.tags || '').toLowerCase().includes(tagSearchTerm);
     return nameMatch && tagsMatch;
@@ -2309,6 +2372,13 @@ const filteredCharacters = allSortedCharacters.filter(char => {
         const imageUrl = getImageUrl(cardImageSource);
         const placeholderContent = isWorldCard ? '<div class="world-card-placeholder">🌍</div>' : '<div class="placeholder-icon">👤</div>';
         const worldBadgeHtml = isWorldCard ? `<span class="world-badge">World</span>` : '';
+        // Rating badge, shown only inside Adult Mode so General browsing stays
+        // visually unchanged. General cards never carry a badge.
+        const maturityLevel = getCharacterMaturity(character);
+        const maturityMeta = MATURITY_META[maturityLevel];
+        const maturityBadgeHtml = (matureModeOn && maturityMeta && maturityMeta.badge)
+            ? `<span class="maturity-badge ${maturityMeta.badgeClass}" title="${maturityMeta.label}">${maturityMeta.badge}</span>`
+            : '';
         // Count only characters that still exist, mirroring the chat-participant
         // logic. Stale/duplicate IDs (e.g. left behind after copying a world)
         // must not inflate the count shown on the card.
@@ -2322,6 +2392,7 @@ const filteredCharacters = allSortedCharacters.filter(char => {
             <button class="archive-btn" title="${archiveButtonTitle}">${archiveButtonIcon}</button>
             <div class="card-image-container effect-container">
     ${worldBadgeHtml}
+    ${maturityBadgeHtml}
     <img src="${imageUrl}" alt="Avatar" class="${cardImageSource ? '' : 'hidden'}" onerror="this.classList.add('is-broken')">
     ${cardImageSource ? '' : placeholderContent}
     ${worldCharCountHtml}
@@ -6155,6 +6226,13 @@ document.getElementById('open-world-char-picker-btn').addEventListener('click', 
     }
 
 
+    // The content-rating control only makes sense while Adult Mode is on. When
+    // off it is hidden, but the card keeps whatever rating it already had.
+    function updateEditorMaturityVisibility() {
+        const section = document.getElementById('editor-maturity-section');
+        if (section) section.hidden = !isMatureModeEnabled();
+    }
+
     function openEditorForNew() {
     tempUploadedImages = {};
     resetEditorGallery([]);
@@ -6174,6 +6252,9 @@ document.getElementById('open-world-char-picker-btn').addEventListener('click', 
     if (flatLoreRadio) flatLoreRadio.checked = true;
     updateEditorForLoreMode('flat');
     editingCharField.value = '';
+    const maturitySelectNew = document.getElementById('char-maturity');
+    if (maturitySelectNew) maturitySelectNew.value = 'general';
+    updateEditorMaturityVisibility();
     document.getElementById('chat-list-screen').style.backgroundImage = 'none';
     editorAvatarImg.src = '';
     editorAvatarImg.classList.add('hidden');
@@ -6268,9 +6349,13 @@ if (editorDisplayUrl) {
   }
   updateEditorForLoreMode(loreMode);
 
+  const maturitySelectEdit = document.getElementById('char-maturity');
+  if (maturitySelectEdit) maturitySelectEdit.value = getCharacterMaturity(character);
+  updateEditorMaturityVisibility();
+
   editingCharField.value = currentCharacterId;
   updateEditorTokenCount();
-  
+
   characterEditorModal.classList.remove('hidden');
 
   setTimeout(() => {
@@ -6796,6 +6881,9 @@ async function setActivePersonaForChat(personaId) {
   const reminder = document.getElementById('char-reminder').value;
   const narratorReminder = document.getElementById('char-narrator-reminder').value;
   const musicUrl = document.getElementById('char-music-url').value.trim();
+  const maturitySelectEl = document.getElementById('char-maturity');
+  const maturity = maturitySelectEl && MATURITY_ORDER.includes(maturitySelectEl.value)
+      ? maturitySelectEl.value : 'general';
   const characterIds = cardType === 'world' ? Array.from(worldCharSelectedIds) : [];
   const scenarioEntries = document.querySelectorAll('#scenario-editor-list .scenario-entry');
   const scenarios = [];
@@ -6844,6 +6932,7 @@ async function setActivePersonaForChat(personaId) {
     character.musicUrl = musicUrl;
     character.scenarios = scenarios;
     character.type = cardType;
+    character.maturity = maturity;
     character.characterIds = characterIds;
     await saveSingleCharacterToDB(character);
   } else {
@@ -6865,6 +6954,7 @@ async function setActivePersonaForChat(personaId) {
       musicUrl: musicUrl,
       scenarios: scenarios,
       type: cardType,
+      maturity: maturity,
       characterIds: characterIds,
       chats: {}
     };
@@ -10698,6 +10788,90 @@ resetAppSettingsBtn.addEventListener('click', resetAppSettings);
 
 
 
+// --- Mature mode UI wiring --------------------------------------------------
+// The toggle button reflects state; enabling for the first time routes through
+// the 18+ age gate, after which the affirmation is remembered on this device.
+const matureModeBtn = document.getElementById('mature-mode-btn');
+const ageGateModal = document.getElementById('age-gate-modal');
+const ageGateCheckbox = document.getElementById('age-gate-checkbox');
+const ageGateConfirmBtn = document.getElementById('age-gate-confirm-btn');
+const ageGateCancelBtn = document.getElementById('age-gate-cancel-btn');
+
+// Reflects mature-mode state across every surface that depends on it: the
+// header button, the maturity filter visibility, and the character list (so
+// adult-rated cards appear or disappear immediately).
+function refreshMatureModeUI() {
+    const on = isMatureModeEnabled();
+    if (matureModeBtn) {
+        matureModeBtn.textContent = on ? '🔞 Adult Mode: On' : '🔞 Adult Mode: Off';
+        matureModeBtn.classList.toggle('is-active', on);
+        matureModeBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+    const filterWrap = document.getElementById('maturity-filter-container');
+    if (filterWrap) filterWrap.classList.toggle('hidden', !on);
+    // Editor section is toggled when the editor opens; nothing to do here.
+    renderCharacterList(searchInput.value.trim());
+}
+
+function closeAgeGate() {
+    if (ageGateModal) ageGateModal.classList.add('hidden');
+    if (ageGateCheckbox) ageGateCheckbox.checked = false;
+    if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = true;
+}
+
+function openAgeGate() {
+    if (!ageGateModal) return;
+    if (ageGateCheckbox) ageGateCheckbox.checked = false;
+    if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = true;
+    ageGateModal.classList.remove('hidden');
+}
+
+if (matureModeBtn) {
+    matureModeBtn.addEventListener('click', () => {
+        if (isMatureModeEnabled()) {
+            // Turning it off never needs the gate.
+            setMatureModeEnabled(false);
+            refreshMatureModeUI();
+        } else if (isAgeAffirmed()) {
+            // Affirmation is remembered — enable straight away.
+            setMatureModeEnabled(true);
+            refreshMatureModeUI();
+        } else {
+            openAgeGate();
+        }
+    });
+}
+if (ageGateCheckbox) {
+    ageGateCheckbox.addEventListener('change', () => {
+        if (ageGateConfirmBtn) ageGateConfirmBtn.disabled = !ageGateCheckbox.checked;
+    });
+}
+if (ageGateConfirmBtn) {
+    ageGateConfirmBtn.addEventListener('click', () => {
+        if (!ageGateCheckbox || !ageGateCheckbox.checked) return;
+        recordAgeAffirmation();
+        setMatureModeEnabled(true);
+        closeAgeGate();
+        refreshMatureModeUI();
+    });
+}
+if (ageGateCancelBtn) {
+    ageGateCancelBtn.addEventListener('click', closeAgeGate);
+}
+if (ageGateModal) {
+    ageGateModal.addEventListener('click', (e) => {
+        if (e.target === ageGateModal) closeAgeGate();
+    });
+}
+const maturityFilterSelect = document.getElementById('maturity-filter');
+if (maturityFilterSelect) {
+    maturityFilterSelect.addEventListener('change', () => {
+        renderCharacterList(searchInput.value.trim());
+    });
+}
+
+
+
 async function toggleArchiveState(charId) {
     const character = characters[charId];
     if (!character) return;
@@ -11653,6 +11827,7 @@ async function initializeApp() {
         }
         enforceResponsiveSettingLimits();
         renderCharacterList();
+        refreshMatureModeUI();
         restoreLastSession();
         tutorialInit();
     } catch (error) {

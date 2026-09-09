@@ -7057,6 +7057,100 @@ body.image-gen-off .generate-image-btn {
     pointer-events: none;
 }
 
+/* ── Content-rating badge (Adult Mode) ── */
+/* Bottom-left, so it never collides with the favorite (top-right), archive /
+   world badge (top-left), or world char-count (bottom-right). */
+.maturity-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 3;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+.maturity-badge--mature {
+    background: rgba(200, 120, 40, 0.8);
+}
+.maturity-badge--explicit {
+    background: rgba(200, 55, 70, 0.82);
+}
+
+/* ── Adult Mode toggle button (main header) ── */
+#mature-mode-btn.is-active {
+    background: rgba(200, 55, 70, 0.28);
+    border-color: rgba(230, 90, 110, 0.6);
+    color: #ffd9df;
+}
+
+/* ── Content-rating filter (character list) ── */
+#maturity-filter-container {
+    display: flex;
+    align-items: center;
+}
+#maturity-filter {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #dcddde;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+/* ── 18+ age gate ── */
+#age-gate-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.68);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2300;
+    padding: 16px;
+}
+#age-gate-modal.hidden {
+    display: none;
+}
+#age-gate-content {
+    max-width: 520px;
+    width: min(520px, 94vw);
+}
+#age-gate-content .age-gate-lead {
+    margin-bottom: 12px;
+}
+#age-gate-content .age-gate-points {
+    margin: 0 0 16px;
+    padding-left: 20px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: rgba(220, 221, 222, 0.9);
+}
+#age-gate-content .age-gate-points li {
+    margin-bottom: 8px;
+}
+#age-gate-content .age-gate-confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#age-gate-content .age-gate-confirm input {
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+#age-gate-confirm-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* World indicator in chat header */
 #chat-world-badge {
     font-size: 0.6rem;
