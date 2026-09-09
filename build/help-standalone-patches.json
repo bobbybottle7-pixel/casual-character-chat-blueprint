@@ -1,0 +1,12 @@
+[
+  {
+    "note": "Multi-file copy instructions do not apply to the single-file build.",
+    "find": "        <strong>IMPORTANT:</strong> If you want to run your app on another device, you must copy your <em>entire</em> app folder to that device - not just <code>index.html</code>, because it loads the other files sitting next to it. The folder has to keep <code>index.html</code>, <code>style.css</code>, <code>script.js</code>, <code>starter_pack_data.js</code>, <code>help.html</code> and <code>privacy &amp; terms.html</code> together in one place. Only then can you start the app on that device by opening the <code>index.html</code> file in the browser as usual.",
+    "replace": "        <strong>IMPORTANT:</strong> If you want to run the app on another device, you must copy this standalone file to that device. Everything the app needs is bundled inside it, so opening it there in the browser is all it takes."
+  },
+  {
+    "note": "Opening the app: the standalone needs no folder and no live server.",
+    "find": "    <li><strong>On desktop:</strong> Just double-click <code>index.html</code> to open it in your browser — everything works fine.</li>\n    <li><strong>On mobile:</strong> Smartphones block linked CSS and script files when opening an HTML file directly, so the app won't look or work right that way. Use one of these options instead:\n        <ul>\n            <li>Open the <strong>standalone HTML file</strong> (included in the app folder) in your mobile browser — it has everything bundled into a single file and works out of the box.</li>\n            <li>Or open <code>index.html</code> via a <strong>live server app</strong> on your device (e.g. the \"Live Server\" app).</li>\n        </ul>\n    </li>",
+    "replace": "    <li><strong>On desktop:</strong> Just double-click this standalone file to open it in your browser — everything works fine.</li>\n    <li><strong>On mobile:</strong> Open this same standalone file in your mobile browser. Smartphones block linked CSS and script files when an HTML file is opened directly, which is why the multi-file version of the app does not work that way — this one has nothing linked to block, so it works out of the box.</li>"
+  }
+]
