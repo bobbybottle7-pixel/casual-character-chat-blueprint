@@ -80,6 +80,30 @@ ANSWER + SUGGEST — final answer printed, then 2-4 concrete next actions
 Bounded retries (default 2 re-plans) prevent infinite loops; the agent says
 plainly when it's stuck instead of spinning.
 
+### 3.1.1 Chaining: results feed forward
+
+A plan is only an agent loop if step 2 can use what step 1 found. A step's
+`input` may contain `{{prev}}` (the previous step's result) or `{{N}}`
+(step N's, 1-indexed); the engine substitutes the real text immediately
+before the step runs. Out-of-range references are left as literal text
+rather than silently becoming empty. The online planner is told about this
+syntax in its system prompt; the offline planner emits it when a task
+chains clauses with `then` / `and then` and the later clause refers back
+("save **it** to out.txt", "remember **that** as answer"). A bare `and`
+never splits a task — it would tear "list files and directories" in two.
+
+Reasoning steps get the same benefit: a `reason` step receives this task's
+observations alongside prior conversation turns, so it can reason about
+what the earlier steps actually turned up.
+
+**`output` vs `data`.** A skill result carries `output` (what the user
+reads) and optionally `data` (the clean value meant for chaining).
+`webFetch` shows the source URL above the text but chains only the text;
+`calculator` shows `6 * 7 = 42` but chains `42`. Without this split the
+display string becomes the payload, and a note ends up holding
+`"6 * 7 = 42"` where `42` was meant. Substitution prefers `data`, falling
+back to `output` for skills that don't need the distinction.
+
 ### 3.2 Modes
 
 - **One-shot:** `agent "task"` — plan, run, answer, exit. Good for scripting.
@@ -141,6 +165,10 @@ Registration order matters: first match wins, and `webFetch` must precede
 Skills are plain objects `{ name, description, match(task), run(args) }`
 registered in `src/skills/index.js`. Adding a skill is: write the file,
 register it — no other code changes needed (open/closed by design).
+
+`run()` returns `{ ok, output, data?, retryable? }` — `output` for the
+user, `data` for chaining when the two differ (§3.1.1), and
+`retryable: false` for failures a re-plan cannot fix.
 
 ## 6. Suggestions engine
 

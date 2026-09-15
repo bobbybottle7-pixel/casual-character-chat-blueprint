@@ -73,6 +73,20 @@ URL can't bounce you into `169.254.169.254`. See DESIGN.md §7.
 
 Anything that doesn't match a skill is answered directly through reasoning.
 
+## Chaining steps
+
+Say `then` and the agent wires one step's result into the next:
+
+```bash
+node bin/agent.js --yes "fetch https://example.com then save it to page.txt"
+node bin/agent.js --yes "what is 6 * 7 then remember it as answer"
+```
+
+Under the hood the second step's input holds `{{prev}}`, which is replaced
+with what the first step actually produced. You can write `{{prev}}` or
+`{{1}}`/`{{2}}` yourself, and a live model is told the same syntax so its
+plans chain too.
+
 ## Running the tests
 
 ```bash

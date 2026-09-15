@@ -50,6 +50,12 @@ Available skills:
 ${describeSkills()}
 - reason: pure thinking, no tool — use for anything the other skills can't do.
 
+Chaining: a step's "input" may contain {{prev}} (the previous step's output)
+or {{N}} (step N's output, 1-indexed). The agent substitutes the real text
+before running the step. Use this whenever a step needs an earlier result —
+e.g. fetch a page in step 1, then step 2 input "write to out.txt with
+content {{prev}}".
+
 Keep plans to 1-4 steps. Prefer the fewest steps that actually solve the task.`;
 
 async function planOnline(task) {
@@ -65,23 +71,65 @@ function lowerFirst(text) {
   return text.charAt(0).toLowerCase() + text.slice(1);
 }
 
+// Only explicit sequencing words split a task. "and" alone is too greedy —
+// it would tear "list files and directories" into two bogus steps.
+const CHAIN_SPLIT = /\s*(?:,\s*)?\b(?:and\s+then|then)\b\s+/i;
+const BACKREF = /\b(it|that|this|them|the result|the output|the contents?)\b/i;
+
+// Rewrites a back-referring clause into the canonical form its skill
+// already parses, with {{prev}} standing in for the earlier step's output.
+function canonicalizeChained(clause) {
+  const write = clause.match(/\b(?:write|save|store)\b.*?\bto\b\s+(\S+)/i);
+  if (write && BACKREF.test(clause)) {
+    return { skill: "fileOps", input: `write to ${write[1].replace(/[.,;:]+$/, "")} with content {{prev}}` };
+  }
+
+  const remember = clause.match(/\bremember\b.*?\bas\b\s+(?:the\s+)?([\w -]+)/i);
+  if (remember && BACKREF.test(clause)) {
+    return { skill: "notes", input: `remember ${remember[1].trim()} = {{prev}}` };
+  }
+
+  return null;
+}
+
+function chainedStep(clause, canon) {
+  return {
+    skill: canon.skill,
+    input: canon.input,
+    summary: `Pass the previous result to ${canon.skill}`,
+    reasoning: `"${clause}" refers back to the previous step, so it consumes that step's output.`,
+    teaching:
+      "This step's input contains {{prev}}, which the agent replaces with what the previous step actually produced before running it. That substitution is the difference between a real chain and a list of unrelated commands run back to back.",
+  };
+}
+
 function planOffline(task) {
   // Deterministic, rule-based planner. It exercises the exact same
   // control flow and skills the online planner would pick — see
   // DESIGN.md §3.3 for why this exists and what it guarantees.
   const trimmed = task.trim();
 
+  const clauses = trimmed.split(CHAIN_SPLIT).map((c) => c.trim()).filter(Boolean);
+  if (clauses.length > 1) {
+    return clauses.map((clause, i) => {
+      const canon = i > 0 ? canonicalizeChained(clause) : null;
+      return canon ? chainedStep(clause, canon) : planClause(clause);
+    });
+  }
+
+  return [planClause(trimmed)];
+}
+
+function planClause(trimmed) {
   if (looksLikeMath(trimmed)) {
-    return [
-      {
-        skill: "calculator",
-        input: trimmed,
-        summary: "Evaluate the expression",
-        reasoning: "The task is a self-contained arithmetic expression.",
-        teaching:
-          "Agent CLI never guesses at arithmetic — it hands numeric work to a dedicated calculator skill so the result is exact, not a language model's best guess.",
-      },
-    ];
+    return {
+      skill: "calculator",
+      input: trimmed,
+      summary: "Evaluate the expression",
+      reasoning: "The task is a self-contained arithmetic expression.",
+      teaching:
+        "Agent CLI never guesses at arithmetic — it hands numeric work to a dedicated calculator skill so the result is exact, not a language model's best guess.",
+    };
   }
 
   const matched = SKILLS.find((s) => {
@@ -93,27 +141,23 @@ function planOffline(task) {
   });
 
   if (matched) {
-    return [
-      {
-        skill: matched.name,
-        input: trimmed,
-        summary: `Use ${matched.name} to handle the request`,
-        reasoning: `The task's wording matches what the "${matched.name}" skill is built for.`,
-        teaching: `I picked "${matched.name}" because it ${lowerFirst(matched.description).replace(/\.$/, "")} — matching the verbs in your request to the right tool is most of what planning means.`,
-      },
-    ];
+    return {
+      skill: matched.name,
+      input: trimmed,
+      summary: `Use ${matched.name} to handle the request`,
+      reasoning: `The task's wording matches what the "${matched.name}" skill is built for.`,
+      teaching: `I picked "${matched.name}" because it ${lowerFirst(matched.description).replace(/\.$/, "")} — matching the verbs in your request to the right tool is most of what planning means.`,
+    };
   }
 
-  return [
-    {
-      skill: "reason",
-      input: trimmed,
-      summary: "Think through the task directly",
-      reasoning: "No specific skill matched, so this is answered by reasoning alone.",
-      teaching:
-        "Not every task needs a tool. When nothing in the skill list fits, the agent answers directly instead of forcing a tool call — using a tool just because one exists is a common beginner mistake to avoid.",
-    },
-  ];
+  return {
+    skill: "reason",
+    input: trimmed,
+    summary: "Think through the task directly",
+    reasoning: "No specific skill matched, so this is answered by reasoning alone.",
+    teaching:
+      "Not every task needs a tool. When nothing in the skill list fits, the agent answers directly instead of forcing a tool call — using a tool just because one exists is a common beginner mistake to avoid.",
+  };
 }
 
 export async function planTask(task) {

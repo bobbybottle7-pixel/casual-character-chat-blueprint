@@ -4,10 +4,32 @@ import { recordTurn, recentContext } from "./memory.js";
 import * as ui from "./ui.js";
 
 const MAX_REPLANS = 2;
+const CONFIRM_PREVIEW_CHARS = 120;
 
-async function runStep(step, ctx) {
+/**
+ * Replaces {{prev}} and {{N}} in a step's input with what earlier steps
+ * actually produced. Without this a "plan" is just a batch of independent
+ * tool calls — step 2 could never use what step 1 found.
+ */
+export function resolveReferences(input, observations) {
+  if (!input || !observations.length) return input;
+  // A skill may return `data` (the clean value meant for chaining)
+  // alongside `output` (what the user reads); prefer it when present.
+  const valueOf = (obs) => obs?.data ?? obs?.output ?? "";
+  return input
+    .replace(/\{\{prev\}\}/gi, () => valueOf(observations[observations.length - 1]))
+    .replace(/\{\{(\d+)\}\}/g, (match, n) => (observations[Number(n) - 1] ? valueOf(observations[Number(n) - 1]) : match));
+}
+
+async function runStep(step, ctx, observations) {
   if (step.skill === "reason" || !findSkill(step.skill)) {
-    const output = await reasonAbout(step.input, recentContext(ctx.session));
+    // A reasoning step sees both prior turns and what this task's earlier
+    // steps turned up, so it can actually reason about the findings.
+    const stepContext = observations.map((o, i) => ({
+      task: `step ${i + 1} (${o.skill})`,
+      answer: o.output,
+    }));
+    const output = await reasonAbout(step.input, [...recentContext(ctx.session), ...stepContext]);
     return { ok: true, skill: "reason", output };
   }
 
@@ -17,7 +39,11 @@ async function runStep(step, ctx) {
   if (needsConfirm && !ctx.autoYes) {
     const isDestructive = typeof skill.isDestructive === "function" && skill.isDestructive(step.input);
     const label = isDestructive ? ui.style.err("[potentially destructive]") : "";
-    const approved = await ctx.confirm(`Run ${skill.name} step: "${step.input}" ${label}? [y/N] `);
+    // Resolved input can carry a whole fetched page — don't dump it into
+    // the prompt the user has to read before answering y/N.
+    const preview =
+      step.input.length > CONFIRM_PREVIEW_CHARS ? `${step.input.slice(0, CONFIRM_PREVIEW_CHARS)}…` : step.input;
+    const approved = await ctx.confirm(`Run ${skill.name} step: "${preview}" ${label}? [y/N] `);
     if (!approved) {
       return { ok: false, declined: true, skill: skill.name, output: "Skipped — not confirmed by user." };
     }
@@ -25,7 +51,7 @@ async function runStep(step, ctx) {
 
   try {
     const result = await skill.run(step.input, { cwd: ctx.cwd, session: ctx.session, fetch: ctx.fetch });
-    return { ok: result.ok, retryable: result.retryable, skill: skill.name, output: result.output };
+    return { ok: result.ok, retryable: result.retryable, skill: skill.name, output: result.output, data: result.data };
   } catch (err) {
     return { ok: false, skill: skill.name, output: `Skill error: ${err.message}` };
   }
@@ -43,12 +69,12 @@ export async function runTask(task, ctx) {
   let replans = 0;
 
   for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
+    const step = { ...steps[i], input: resolveReferences(steps[i].input, observations) };
     ui.printStepHeader(i + 1, steps.length, step);
     if (step.reasoning) ui.printReasoning(step.reasoning);
     if (ctx.teach && step.teaching) ui.printTeaching(step.teaching);
 
-    const result = await runStep(step, ctx);
+    const result = await runStep(step, ctx, observations);
     ui.printObservation(result.output);
     observations.push(result);
 

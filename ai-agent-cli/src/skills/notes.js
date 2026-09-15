@@ -31,7 +31,7 @@ const skill = {
     if (intent.action === "recall") {
       const value = notes[intent.key.toLowerCase()];
       return value
-        ? { ok: true, output: `${intent.key}: ${value}` }
+        ? { ok: true, output: `${intent.key}: ${value}`, data: value }
         : { ok: false, output: `Nothing remembered under "${intent.key}" yet.` };
     }
 

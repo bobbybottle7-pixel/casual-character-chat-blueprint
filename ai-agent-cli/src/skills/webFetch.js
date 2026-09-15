@@ -167,7 +167,10 @@ const skill = {
     const text = /html/.test(contentType) ? htmlToText(body) : body.trim();
     const excerpt = text.length > EXCERPT_CHARS ? `${text.slice(0, EXCERPT_CHARS)}\n…(truncated)` : text;
 
-    return { ok: true, output: `${finalUrl}\n\n${excerpt}` };
+    // `output` is what the user reads (source URL included for provenance);
+    // `data` is what chains into the next step — the content alone, since
+    // a URL header prepended to piped data is corruption, not context.
+    return { ok: true, output: `${finalUrl}\n\n${excerpt}`, data: excerpt };
   },
 };
 

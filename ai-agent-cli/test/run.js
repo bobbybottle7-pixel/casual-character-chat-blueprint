@@ -11,7 +11,7 @@ import shell from "../src/skills/shell.js";
 import webFetch, { assertSafeUrl, extractUrl } from "../src/skills/webFetch.js";
 import { matchSkill, findSkill, SKILLS } from "../src/skills/index.js";
 import { planTask, composeAnswer, composeSuggestions, isOnline } from "../src/llm.js";
-import { runTask } from "../src/agent.js";
+import { runTask, resolveReferences } from "../src/agent.js";
 import { loadSession } from "../src/memory.js";
 
 function tmpDir() {
@@ -280,6 +280,80 @@ test("composeAnswer/composeSuggestions never return empty offline", async () => 
   assert.ok(answer.length > 0);
   const suggestions = await composeSuggestions("12 * 4", answer);
   assert.ok(suggestions.length >= 1);
+});
+
+// ---------------------------------------------------------------------
+// step chaining (observations feeding forward)
+// ---------------------------------------------------------------------
+
+test("resolveReferences substitutes {{prev}} and {{N}}", () => {
+  const obs = [{ output: "first" }, { output: "second" }];
+  assert.equal(resolveReferences("got {{prev}}", obs), "got second");
+  assert.equal(resolveReferences("{{1}} then {{2}}", obs), "first then second");
+  assert.equal(resolveReferences("no refs", obs), "no refs");
+  assert.equal(resolveReferences("{{prev}}", []), "{{prev}}", "nothing to substitute yet");
+  assert.equal(resolveReferences("{{9}}", obs), "{{9}}", "out-of-range reference left intact");
+});
+
+test("resolveReferences prefers a skill's clean `data` over display `output`", () => {
+  const obs = [{ output: "https://example.com/\n\nBody text", data: "Body text" }];
+  assert.equal(resolveReferences("save {{prev}}", obs), "save Body text");
+});
+
+test("offline planner chains 'then' clauses into a multi-step plan", async () => {
+  const steps = await planTask("fetch https://example.com then save it to out.txt");
+  assert.equal(steps.length, 2);
+  assert.equal(steps[0].skill, "webFetch");
+  assert.equal(steps[1].skill, "fileOps");
+  assert.match(steps[1].input, /\{\{prev\}\}/);
+});
+
+test("offline planner chains a calculation into a note", async () => {
+  const steps = await planTask("what is 6 * 7 then remember it as answer");
+  assert.equal(steps.length, 2);
+  assert.equal(steps[0].skill, "calculator");
+  assert.equal(steps[1].skill, "notes");
+  assert.equal(steps[1].input, "remember answer = {{prev}}");
+});
+
+test("chaining a calculation stores the bare value, not the working", async () => {
+  const cwd = tmpDir();
+  const session = loadSession(cwd);
+  await runTask("what is 6 * 7 then remember it as answer", {
+    session,
+    cwd,
+    teach: false,
+    autoYes: true,
+    confirm: async () => true,
+  });
+  assert.equal(session.notes.answer, "42", 'should store "42", not "6 * 7 = 42"');
+});
+
+test("offline planner does not split on a bare 'and'", async () => {
+  const steps = await planTask("list files and directories");
+  assert.equal(steps.length, 1, '"and" must not tear one request into two steps');
+});
+
+test("chained steps run end-to-end, feeding real output forward", async () => {
+  const cwd = tmpDir();
+  const session = loadSession(cwd);
+  const fetchImpl = fakeFetch({
+    "https://example.com/": {
+      headers: { "content-type": "text/html" },
+      body: "<html><body><p>Chained content</p></body></html>",
+    },
+  });
+  const result = await runTask("fetch https://example.com/ then save it to out.txt", {
+    session,
+    cwd,
+    teach: false,
+    autoYes: true,
+    confirm: async () => true,
+    fetch: fetchImpl,
+  });
+  assert.equal(result.observations.length, 2);
+  const written = fs.readFileSync(path.join(cwd, "out.txt"), "utf8");
+  assert.equal(written, "Chained content", "step 2 must receive step 1's clean data, not its display text");
 });
 
 // ---------------------------------------------------------------------

@@ -123,7 +123,9 @@ const skill = {
     const exprMatch = input.match(/[0-9.\s()+\-*/^%]{2,}/);
     const expression = (exprMatch ? exprMatch[0] : input).trim();
     const result = evaluate(expression);
-    return { ok: true, output: `${expression.trim()} = ${result}` };
+    // `output` shows the working; `data` is the bare number, so chaining
+    // into a note or a file stores 42 rather than "6 * 7 = 42".
+    return { ok: true, output: `${expression.trim()} = ${result}`, data: String(result) };
   },
 };
 
