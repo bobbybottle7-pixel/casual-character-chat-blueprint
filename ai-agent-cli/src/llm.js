@@ -89,6 +89,12 @@ function canonicalizeChained(clause) {
     return { skill: "notes", input: `remember ${remember[1].trim()} = {{prev}}` };
   }
 
+  // "search X then read the first result" — webFetch takes the first URL
+  // it finds, and search puts the top hit's URL first in its chained data.
+  if (/\b(fetch|read|open|get)\b/i.test(clause) && (BACKREF.test(clause) || /\bfirst (result|hit|link)\b/i.test(clause))) {
+    return { skill: "webFetch", input: `fetch {{prev}}` };
+  }
+
   return null;
 }
 

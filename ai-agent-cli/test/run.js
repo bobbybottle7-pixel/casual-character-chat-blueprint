@@ -9,6 +9,7 @@ import fileOps from "../src/skills/fileOps.js";
 import notes from "../src/skills/notes.js";
 import shell from "../src/skills/shell.js";
 import webFetch, { assertSafeUrl, extractUrl } from "../src/skills/webFetch.js";
+import search, { activeProvider, extractQuery, parseDuckDuckGo } from "../src/skills/search.js";
 import { matchSkill, findSkill, SKILLS } from "../src/skills/index.js";
 import { planTask, composeAnswer, composeSuggestions, isOnline } from "../src/llm.js";
 import { runTask, resolveReferences } from "../src/agent.js";
@@ -280,6 +281,130 @@ test("composeAnswer/composeSuggestions never return empty offline", async () => 
   assert.ok(answer.length > 0);
   const suggestions = await composeSuggestions("12 * 4", answer);
   assert.ok(suggestions.length >= 1);
+});
+
+// ---------------------------------------------------------------------
+// search
+// ---------------------------------------------------------------------
+
+// Shaped like the real html.duckduckgo.com markup: hrefs are wrapped in a
+// //duckduckgo.com/l/?uddg= redirect and snippets carry <b> highlighting.
+const DDG_FIXTURE = `
+<div class="result results_links web-result">
+  <h2 class="result__title">
+    <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fclaude.com%2Fproduct&amp;rut=abc">The AI for <b>Problem</b> Solvers</a>
+  </h2>
+  <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fclaude.com%2Fproduct&amp;rut=abc"><b>Claude</b> is Anthropic&#x27;s AI.</a>
+</div>
+<div class="result results_links web-result">
+  <h2 class="result__title">
+    <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fdocs.example.org%2Fguide&amp;rut=def">Second Result</a>
+  </h2>
+  <a class="result__snippet" href="#">A guide to things.</a>
+</div>`;
+
+test("search: picks a keyed provider when its env var is set, else duckduckgo", () => {
+  assert.equal(activeProvider({}), "duckduckgo");
+  assert.equal(activeProvider({ BRAVE_SEARCH_API_KEY: "k" }), "brave");
+  assert.equal(activeProvider({ TAVILY_API_KEY: "k" }), "tavily");
+  assert.equal(activeProvider({ SERPAPI_API_KEY: "k" }), "serpapi");
+  // Brave wins when several are present — first in the declared order.
+  assert.equal(activeProvider({ SERPAPI_API_KEY: "k", BRAVE_SEARCH_API_KEY: "k" }), "brave");
+});
+
+test("search: strips search verbs to get the bare query", () => {
+  assert.equal(extractQuery("search for anthropic claude"), "anthropic claude");
+  assert.equal(extractQuery("google anthropic claude"), "anthropic claude");
+  assert.equal(extractQuery("look up the best pasta recipe?"), "the best pasta recipe");
+  assert.equal(extractQuery("search rust borrow checker on the web"), "rust borrow checker");
+});
+
+test("search: parses DuckDuckGo HTML, unwrapping redirect URLs", () => {
+  const results = parseDuckDuckGo(DDG_FIXTURE);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].url, "https://claude.com/product", "uddg redirect must be decoded");
+  assert.equal(results[0].title, "The AI for Problem Solvers", "<b> tags stripped");
+  assert.match(results[0].snippet, /Claude is Anthropic's AI/, "entities decoded");
+  assert.equal(results[1].url, "https://docs.example.org/guide");
+});
+
+test("search: defers to webFetch when the task already contains a URL", () => {
+  assert.equal(matchSkill("look up https://example.com/docs").name, "webFetch");
+  assert.equal(matchSkill("search for anthropic claude").name, "search");
+  assert.equal(matchSkill("look up the weather online").name, "search");
+});
+
+test("search: 'find files' is still fileOps, not a web search", () => {
+  assert.equal(matchSkill("list files in .").name, "fileOps");
+});
+
+test("search: returns results and chains URL-first data", async () => {
+  const fetchImpl = fakeFetch({
+    "https://html.duckduckgo.com/html/?q=anthropic%20claude": {
+      headers: { "content-type": "text/html" },
+      body: DDG_FIXTURE,
+    },
+  });
+  const result = await search.run("search for anthropic claude", { fetch: fetchImpl, env: {} });
+  assert.equal(result.ok, true);
+  assert.match(result.output, /via duckduckgo/);
+  assert.match(result.output, /The AI for Problem Solvers/);
+  // Chained data leads with the URL so webFetch grabs the top hit.
+  assert.match(result.data.split("\n")[0], /^https:\/\/claude\.com\/product /);
+});
+
+test("search: retries the flaky keyless endpoint before giving up", async () => {
+  let calls = 0;
+  const flaky = async () => {
+    calls++;
+    if (calls < 3) throw Object.assign(new Error("timeout"), { name: "TimeoutError" });
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "text/html" },
+      text: async () => DDG_FIXTURE,
+    };
+  };
+  const result = await search.run("search for anything", { fetch: flaky, env: {} });
+  assert.equal(calls, 3, "should retry rather than fail on the first timeout");
+  assert.equal(result.ok, true);
+});
+
+test("search: reports provider failure clearly instead of throwing", async () => {
+  const alwaysFails = async () => {
+    throw Object.assign(new Error("timeout"), { name: "TimeoutError" });
+  };
+  const result = await search.run("search for anything", { fetch: alwaysFails, env: {} });
+  assert.equal(result.ok, false);
+  assert.match(result.output, /Search via duckduckgo failed/);
+});
+
+test("search: uses a keyed provider's API shape when its key is present", async () => {
+  let seenUrl, seenHeaders;
+  const braveFetch = async (url, opts) => {
+    seenUrl = url;
+    seenHeaders = opts.headers;
+    return {
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" },
+      json: async () => ({ web: { results: [{ title: "Brave hit", url: "https://b.example/1", description: "<b>desc</b>" }] } }),
+    };
+  };
+  const result = await search.run("search for widgets", { fetch: braveFetch, env: { BRAVE_SEARCH_API_KEY: "secret" } });
+  assert.equal(result.ok, true);
+  assert.match(result.output, /via brave/);
+  assert.match(seenUrl, /api\.search\.brave\.com/);
+  assert.equal(seenHeaders["x-subscription-token"], "secret");
+  assert.match(result.output, /desc/, "html in descriptions is stripped");
+});
+
+test("search -> fetch chains into the top result", async () => {
+  const steps = await planTask("search for anthropic claude then read the first result");
+  assert.equal(steps.length, 2);
+  assert.equal(steps[0].skill, "search");
+  assert.equal(steps[1].skill, "webFetch");
+  assert.match(steps[1].input, /\{\{prev\}\}/);
 });
 
 // ---------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import calculator from "./calculator.js";
+import search from "./search.js";
 import webFetch from "./webFetch.js";
 import fileOps from "./fileOps.js";
 import shell from "./shell.js";
@@ -10,7 +11,9 @@ import notes from "./notes.js";
 //
 // webFetch must precede fileOps: fileOps matches anything with a file
 // extension, and "example.com" looks exactly like one to that pattern.
-export const SKILLS = [calculator, webFetch, fileOps, shell, notes];
+// search precedes webFetch so "look up X online" (no URL given) is a
+// search; search itself defers whenever the task contains a real URL.
+export const SKILLS = [calculator, search, webFetch, fileOps, shell, notes];
 
 export function findSkill(name) {
   return SKILLS.find((s) => s.name === name);

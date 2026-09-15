@@ -58,14 +58,29 @@ agent "your task"
 ## What it can do out of the box
 
 - **calculator** — safe arithmetic, no `eval`
+- **search** — web search, no API key required
 - **webFetch** — fetch a public web page or JSON API and read its text
 - **fileOps** — read / list / write files, scoped to the current directory
 - **shell** — run one shell command (always asks for confirmation first)
 - **notes** — remember/recall short facts for the rest of the session
 
 ```bash
+node bin/agent.js "search for rust borrow checker"
 node bin/agent.js "fetch https://api.github.com/repos/anthropics/claude-code"
+node bin/agent.js --yes "search for rust borrow checker then read the first result"
 ```
+
+### Search providers
+
+Search works with no API key, using DuckDuckGo. That endpoint rate-limits
+and times out fairly often (the skill retries), so for sustained use set
+one of these and it's picked up automatically — no config, first one wins:
+
+| Env var                | Provider   |
+|------------------------|------------|
+| `BRAVE_SEARCH_API_KEY` | Brave      |
+| `TAVILY_API_KEY`       | Tavily     |
+| `SERPAPI_API_KEY`      | SerpAPI    |
 
 `webFetch` only speaks http/https and refuses loopback, private-range and
 cloud-metadata addresses — re-checked on every redirect hop, so a public

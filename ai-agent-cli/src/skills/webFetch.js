@@ -59,6 +59,15 @@ export function assertSafeUrl(rawUrl) {
   return url;
 }
 
+function codePoint(value, original) {
+  if (!Number.isInteger(value) || value < 0 || value > 0x10ffff) return original;
+  try {
+    return String.fromCodePoint(value);
+  } catch {
+    return original;
+  }
+}
+
 export function htmlToText(html) {
   return html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -68,6 +77,8 @@ export function htmlToText(html) {
     .replace(/<\/(p|div|h[1-6]|li|tr|br)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<[^>]+>/g, " ")
+    .replace(/&#x([0-9a-f]+);/gi, (m, hex) => codePoint(parseInt(hex, 16), m))
+    .replace(/&#(\d+);/g, (m, dec) => codePoint(Number(dec), m))
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")

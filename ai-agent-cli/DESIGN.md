@@ -154,6 +154,7 @@ replayed with `agent --help-tutorial`.
 | Skill        | Does                                            | Confirmation needed |
 |--------------|--------------------------------------------------|----------------------|
 | `calculator` | Evaluates a safe arithmetic expression            | no |
+| `search`     | Web search, top results with titles/URLs/snippets | no (read-only) |
 | `webFetch`   | GETs a public http(s) page/API, returns its text  | no (read-only, guarded) |
 | `fileOps`    | read / write / list files, scoped to cwd          | write: yes |
 | `shell`      | Runs one shell command via `child_process`        | always, unless `--yes` |
@@ -161,6 +162,35 @@ replayed with `agent --help-tutorial`.
 
 Registration order matters: first match wins, and `webFetch` must precede
 `fileOps` because `example.com` matches `fileOps`'s file-extension pattern.
+`search` precedes `webFetch` so "look up X online" is a search, and defers
+(returns `false` from `match`) whenever the task already contains a URL —
+if the user knows the address, that's a fetch, not a search.
+
+### 5.1 Search providers
+
+`search` auto-detects a provider from the environment rather than making
+the user configure one:
+
+| Env var                 | Provider    |
+|-------------------------|-------------|
+| `BRAVE_SEARCH_API_KEY`  | Brave       |
+| `TAVILY_API_KEY`        | Tavily      |
+| `SERPAPI_API_KEY`       | SerpAPI     |
+| *(none)*                | DuckDuckGo  |
+
+First key found wins, in that order. The keyless DuckDuckGo HTML endpoint
+is the default so search works with no signup, but it rate-limits and
+times out often — roughly half of cold requests in testing — so it retries
+up to 3 times before reporting failure. A keyed provider is the better
+choice for anything sustained. Adding a provider is one entry in
+`KEYED_PROVIDERS` plus a runner that maps its response into
+`{title, url, snippet}`.
+
+Search results chain into `webFetch`: `search`'s `data` puts each result's
+URL first on its line, and `webFetch` takes the first URL it finds, so
+"search X then read the first result" fetches the top hit. Result URLs are
+never fetched automatically — only if a later step asks — and when they
+are, `webFetch`'s own guard (§7) applies to them like any other URL.
 
 Skills are plain objects `{ name, description, match(task), run(args) }`
 registered in `src/skills/index.js`. Adding a skill is: write the file,
