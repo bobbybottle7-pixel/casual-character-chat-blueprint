@@ -130,9 +130,13 @@ replayed with `agent --help-tutorial`.
 | Skill        | Does                                            | Confirmation needed |
 |--------------|--------------------------------------------------|----------------------|
 | `calculator` | Evaluates a safe arithmetic expression            | no |
+| `webFetch`   | GETs a public http(s) page/API, returns its text  | no (read-only, guarded) |
 | `fileOps`    | read / write / list files, scoped to cwd          | write: yes |
 | `shell`      | Runs one shell command via `child_process`        | always, unless `--yes` |
 | `notes`      | Remember/recall short facts within a session       | no |
+
+Registration order matters: first match wins, and `webFetch` must precede
+`fileOps` because `example.com` matches `fileOps`'s file-extension pattern.
 
 Skills are plain objects `{ name, description, match(task), run(args) }`
 registered in `src/skills/index.js`. Adding a skill is: write the file,
@@ -161,6 +165,19 @@ LLM for 2-4 short imperative follow-ups online — never left empty.
   auto-approved from a plan alone.
 - `fileOps` write is confined to paths under the current working directory
   (rejects `..` escapes and absolute paths outside cwd).
+- `webFetch` allows only `http`/`https`, and refuses loopback, private,
+  link-local and cloud-metadata addresses (`127.0.0.0/8`, `10/8`,
+  `192.168/16`, `172.16/12`, `169.254/16`, `::1`, `fc00::/7`, `fe80::/10`,
+  `localhost`, `*.local`, `metadata.google.internal`). Redirects are
+  followed manually so **every hop is re-checked** — `redirect: "follow"`
+  would let hop 2 land on `169.254.169.254`. Responses are capped at
+  512 KB, timed out at 10s, and non-text content types are skipped.
+  Known limitation: a public hostname that resolves to a private address
+  (DNS rebinding) is not caught. This is a local CLI fetching URLs its own
+  user typed, not a server accepting untrusted input.
+- Failures that a retry cannot change (a blocked URL, an unsupported
+  scheme, a declined confirmation) return `retryable: false` so the
+  reflect loop doesn't burn a re-plan repeating the same refusal.
 - No skill shells out to `rm -rf`, `git push --force`, or other destructive
   patterns without the same confirmation gate — the agent does not have a
   separate "trusted" bypass.

@@ -24,8 +24,8 @@ async function runStep(step, ctx) {
   }
 
   try {
-    const result = await skill.run(step.input, { cwd: ctx.cwd, session: ctx.session });
-    return { ok: result.ok, skill: skill.name, output: result.output };
+    const result = await skill.run(step.input, { cwd: ctx.cwd, session: ctx.session, fetch: ctx.fetch });
+    return { ok: result.ok, retryable: result.retryable, skill: skill.name, output: result.output };
   } catch (err) {
     return { ok: false, skill: skill.name, output: `Skill error: ${err.message}` };
   }
@@ -52,9 +52,10 @@ export async function runTask(task, ctx) {
     ui.printObservation(result.output);
     observations.push(result);
 
-    if (result.declined) {
-      // The user made a deliberate choice not to run this step — that is
-      // not a failure to work around, so never re-plan around a decline.
+    if (result.declined || result.retryable === false) {
+      // A decline is a deliberate user choice, and a skill that reports
+      // retryable:false has failed for a reason a retry cannot change
+      // (a blocked URL, an unsupported scheme). Neither is worth a re-plan.
       continue;
     }
 

@@ -58,9 +58,18 @@ agent "your task"
 ## What it can do out of the box
 
 - **calculator** — safe arithmetic, no `eval`
+- **webFetch** — fetch a public web page or JSON API and read its text
 - **fileOps** — read / list / write files, scoped to the current directory
 - **shell** — run one shell command (always asks for confirmation first)
 - **notes** — remember/recall short facts for the rest of the session
+
+```bash
+node bin/agent.js "fetch https://api.github.com/repos/anthropics/claude-code"
+```
+
+`webFetch` only speaks http/https and refuses loopback, private-range and
+cloud-metadata addresses — re-checked on every redirect hop, so a public
+URL can't bounce you into `169.254.169.254`. See DESIGN.md §7.
 
 Anything that doesn't match a skill is answered directly through reasoning.
 

@@ -8,6 +8,7 @@ import { evaluate, looksLikeMath } from "../src/skills/calculator.js";
 import fileOps from "../src/skills/fileOps.js";
 import notes from "../src/skills/notes.js";
 import shell from "../src/skills/shell.js";
+import webFetch, { assertSafeUrl, extractUrl } from "../src/skills/webFetch.js";
 import { matchSkill, findSkill, SKILLS } from "../src/skills/index.js";
 import { planTask, composeAnswer, composeSuggestions, isOnline } from "../src/llm.js";
 import { runTask } from "../src/agent.js";
@@ -122,6 +123,133 @@ test("shell: runs a harmless command and captures output", async () => {
   const result = await shell.run("run `echo hello-from-agent-cli`", { cwd });
   assert.equal(result.ok, true);
   assert.match(result.output, /hello-from-agent-cli/);
+});
+
+// ---------------------------------------------------------------------
+// webFetch
+// ---------------------------------------------------------------------
+
+function fakeFetch(routes) {
+  return async (url) => {
+    const route = routes[url];
+    if (!route) throw new Error(`unexpected fetch of ${url}`);
+    return {
+      ok: route.status === undefined || (route.status >= 200 && route.status < 300),
+      status: route.status ?? 200,
+      headers: { get: (k) => route.headers?.[k.toLowerCase()] ?? null },
+      text: async () => route.body ?? "",
+    };
+  };
+}
+
+test("webFetch: blocks non-http protocols", () => {
+  assert.throws(() => assertSafeUrl("file:///etc/passwd"), /only http and https/);
+  assert.throws(() => assertSafeUrl("ftp://example.com"), /only http and https/);
+});
+
+test("webFetch: blocks loopback, private, and metadata addresses", () => {
+  for (const bad of [
+    "http://localhost/x",
+    "http://127.0.0.1/x",
+    "http://10.0.0.5/x",
+    "http://192.168.1.1/x",
+    "http://172.16.0.9/x",
+    "http://169.254.169.254/latest/meta-data/", // cloud metadata
+    "http://metadata.google.internal/x",
+    "http://[::1]/x",
+    "http://printer.local/x",
+  ]) {
+    assert.throws(() => assertSafeUrl(bad), new RegExp("Refusing"), `should block ${bad}`);
+  }
+});
+
+test("webFetch: allows ordinary public URLs", () => {
+  assert.equal(assertSafeUrl("https://example.com/docs").hostname, "example.com");
+  assert.equal(assertSafeUrl("http://93.184.216.34/").hostname, "93.184.216.34");
+});
+
+test("webFetch: re-checks the guard on every redirect hop", async () => {
+  const fetchImpl = fakeFetch({
+    "https://example.com/start": { status: 302, headers: { location: "http://169.254.169.254/creds" } },
+  });
+  const result = await webFetch.run("fetch https://example.com/start", { fetch: fetchImpl });
+  assert.equal(result.ok, false);
+  assert.match(result.output, /Refusing to fetch private\/loopback/);
+});
+
+test("webFetch: follows a safe redirect and returns readable text", async () => {
+  const fetchImpl = fakeFetch({
+    "https://example.com/a": { status: 301, headers: { location: "https://example.com/b" } },
+    "https://example.com/b": {
+      headers: { "content-type": "text/html; charset=utf-8" },
+      body: "<html><head><style>p{color:red}</style></head><body><h1>Title</h1><p>Hello &amp; welcome</p><script>evil()</script></body></html>",
+    },
+  });
+  const result = await webFetch.run("fetch https://example.com/a", { fetch: fetchImpl });
+  assert.equal(result.ok, true);
+  assert.match(result.output, /Title/);
+  assert.match(result.output, /Hello & welcome/);
+  assert.doesNotMatch(result.output, /evil\(\)/, "script contents must be stripped");
+  assert.doesNotMatch(result.output, /color:red/, "style contents must be stripped");
+});
+
+test("webFetch: reports HTTP errors and skips binary content", async () => {
+  const notFound = await webFetch.run("fetch https://example.com/missing", {
+    fetch: fakeFetch({ "https://example.com/missing": { status: 404 } }),
+  });
+  assert.equal(notFound.ok, false);
+  assert.match(notFound.output, /HTTP 404/);
+
+  const binary = await webFetch.run("fetch https://example.com/img", {
+    fetch: fakeFetch({ "https://example.com/img": { headers: { "content-type": "image/png" } } }),
+  });
+  assert.equal(binary.ok, false);
+  assert.match(binary.output, /non-text content/);
+});
+
+test("webFetch: refuses oversized responses before reading them", async () => {
+  const result = await webFetch.run("fetch https://example.com/big", {
+    fetch: fakeFetch({
+      "https://example.com/big": { headers: { "content-length": String(50 * 1024 * 1024), "content-type": "text/html" } },
+    }),
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.output, /over the .* cap/);
+});
+
+test("webFetch: refuses non-http schemes explicitly instead of falling through", async () => {
+  assert.equal(matchSkill("fetch file:///etc/passwd").name, "webFetch");
+  const result = await webFetch.run("fetch file:///etc/passwd", { fetch: fakeFetch({}) });
+  assert.equal(result.ok, false);
+  assert.equal(result.retryable, false);
+  assert.match(result.output, /only http and https/);
+});
+
+test("agent.runTask: a blocked URL is not retried", async () => {
+  const cwd = tmpDir();
+  const session = loadSession(cwd);
+  const result = await runTask("fetch http://169.254.169.254/latest/meta-data/", {
+    session,
+    cwd,
+    teach: false,
+    autoYes: true,
+    confirm: async () => true,
+    fetch: fakeFetch({}),
+  });
+  // One attempt only — a guard refusal can never succeed on a retry.
+  assert.equal(result.observations.length, 1);
+  assert.match(result.answer, /Refusing to fetch private\/loopback/);
+});
+
+test("webFetch: extracts URLs from prose and bare domains", () => {
+  assert.equal(extractUrl("please fetch https://example.com/docs, thanks"), "https://example.com/docs");
+  assert.equal(extractUrl("look up example.com/pricing"), "https://example.com/pricing");
+  assert.equal(extractUrl("no link here"), null);
+});
+
+test("webFetch is matched before fileOps for URLs (extension collision)", () => {
+  assert.equal(matchSkill("fetch https://example.com/index.html").name, "webFetch");
+  assert.equal(matchSkill("read notes.txt").name, "fileOps");
 });
 
 // ---------------------------------------------------------------------
