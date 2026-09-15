@@ -70,7 +70,7 @@ export async function runTask(task, ctx) {
   const answer = await composeAnswer(task, observations);
   ui.printAnswer(answer);
 
-  const suggestions = await composeSuggestions(task, answer);
+  const suggestions = await composeSuggestions(task, answer, { teach: ctx.teach });
   ui.printSuggestions(suggestions);
 
   recordTurn(ctx.session, task, answer);

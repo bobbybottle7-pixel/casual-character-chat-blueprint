@@ -158,6 +158,23 @@ test("composeAnswer/composeSuggestions never return empty offline", async () => 
 // end-to-end agent loop
 // ---------------------------------------------------------------------
 
+test("teaching lines read as grammatical sentences", async () => {
+  const steps = await planTask("list files in .");
+  assert.match(steps[0].teaching, /because it reads, lists, or writes files/);
+  assert.doesNotMatch(steps[0].teaching, /\.\s+—/, "no stray period before the em-dash");
+});
+
+test("suggestions drop the --teach tip when teach mode is already on", async () => {
+  const withoutTeach = await composeSuggestions("12 * 4", "48", { teach: false });
+  const withTeach = await composeSuggestions("12 * 4", "48", { teach: true });
+  assert.ok(withoutTeach.some((s) => s.includes("--teach")));
+  assert.ok(!withTeach.some((s) => s.includes("--teach")));
+  // DESIGN.md §6 promises 2-4 suggestions, never an empty or thin list.
+  for (const list of [withoutTeach, withTeach]) {
+    assert.ok(list.length >= 2 && list.length <= 4, `expected 2-4 suggestions, got ${list.length}`);
+  }
+});
+
 test("agent.runTask: full loop end-to-end for a math task", async () => {
   const cwd = tmpDir();
   const session = loadSession(cwd);

@@ -61,6 +61,10 @@ async function planOnline(task) {
   return parsed.steps;
 }
 
+function lowerFirst(text) {
+  return text.charAt(0).toLowerCase() + text.slice(1);
+}
+
 function planOffline(task) {
   // Deterministic, rule-based planner. It exercises the exact same
   // control flow and skills the online planner would pick — see
@@ -95,7 +99,7 @@ function planOffline(task) {
         input: trimmed,
         summary: `Use ${matched.name} to handle the request`,
         reasoning: `The task's wording matches what the "${matched.name}" skill is built for.`,
-        teaching: `I picked "${matched.name}" because ${matched.description.toLowerCase()} — matching the verbs in your request to the right tool is most of what planning means.`,
+        teaching: `I picked "${matched.name}" because it ${lowerFirst(matched.description).replace(/\.$/, "")} — matching the verbs in your request to the right tool is most of what planning means.`,
       },
     ];
   }
@@ -179,7 +183,7 @@ export async function composeAnswer(task, observations) {
   return summary;
 }
 
-export async function composeSuggestions(task, answer) {
+export async function composeSuggestions(task, answer, opts = {}) {
   if (isOnline()) {
     try {
       const raw = await callAnthropic(
@@ -192,10 +196,10 @@ export async function composeSuggestions(task, answer) {
       // fall through
     }
   }
-  return offlineSuggestions(task);
+  return offlineSuggestions(task, opts);
 }
 
-function offlineSuggestions(task) {
+function offlineSuggestions(task, opts = {}) {
   const suggestions = [];
   if (/\.(js|py|ts|json|md|txt)\b/i.test(task)) {
     suggestions.push('Try: agent "list files in ." to see what else is here');
@@ -203,8 +207,11 @@ function offlineSuggestions(task) {
   if (looksLikeMath(task)) {
     suggestions.push('Chain it: agent "remember result is <the number>" to reuse it later');
   }
-  suggestions.push("Run with --teach to see the plain-language reasoning behind each step");
+  if (!opts.teach) {
+    suggestions.push("Run with --teach to see the plain-language reasoning behind each step");
+  }
   suggestions.push('Ask "what can you do?" to see the full skill list');
+  suggestions.push("Start a session: run `agent` with no arguments to keep notes between tasks");
   return suggestions.slice(0, 4);
 }
 
