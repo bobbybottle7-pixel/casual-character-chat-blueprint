@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cam Claude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles/base.css">
+<link rel="stylesheet" href="/styles/chat.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body>
+<div id="app" class="app">
+
+  <aside class="sidebar" id="sidebar">
+    <header class="sidebar-head">
+      <h1 class="wordmark">Cam&nbsp;Claude</h1>
+      <button class="btn btn-primary" id="new-chat">New chat</button>
+    </header>
+    <nav class="conversation-list" id="conversation-list" aria-label="Conversations"></nav>
+    <footer class="sidebar-foot">
+      <span class="auth-pill" id="auth-pill">checking…</span>
+      <button class="btn btn-ghost btn-sm" id="open-library">Characters</button>
+    </footer>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost btn-sm mobile-only" id="toggle-sidebar" aria-label="Conversations">☰</button>
+      <button class="mode-chip" id="mode-chip" aria-haspopup="dialog">
+        <span class="mode-chip-icon" id="mode-chip-icon">💬</span>
+        <span class="mode-chip-label" id="mode-chip-label">General Chat</span>
+        <span class="mode-chip-caret">▾</span>
+      </button>
+      <h2 class="conversation-title" id="conversation-title">New conversation</h2>
+      <span class="usage" id="usage"></span>
+    </header>
+
+    <section class="transcript" id="transcript" aria-live="polite"></section>
+
+    <div class="composer-wrap">
+      <div class="context-bar" id="context-bar" hidden></div>
+      <form class="composer" id="composer">
+        <textarea id="input" rows="1" placeholder="Ask anything…" autocomplete="off"></textarea>
+        <div class="composer-actions" id="composer-actions">
+          <button type="submit" class="btn btn-primary btn-send" id="send">Send</button>
+        </div>
+      </form>
+      <p class="composer-hint" id="composer-hint"></p>
+    </div>
+  </main>
+
+  <aside class="inspector" id="inspector" hidden>
+    <div class="inspector-head">
+      <h3 id="inspector-title">Details</h3>
+      <button class="btn btn-ghost btn-sm" id="close-inspector" aria-label="Close">✕</button>
+    </div>
+    <div class="inspector-body" id="inspector-body"></div>
+  </aside>
+</div>
+
+<dialog class="sheet" id="mode-sheet">
+  <h3>Mode</h3>
+  <p class="sheet-sub">Each mode changes what Claude is instructed to do <em>and</em> which tools exist at all.</p>
+  <div class="mode-grid" id="mode-grid"></div>
+  <form method="dialog"><button class="btn btn-ghost">Close</button></form>
+</dialog>
+
+<dialog class="sheet" id="library-sheet">
+  <h3>Characters &amp; personas</h3>
+  <p class="sheet-sub">Import a V2/V3 character card PNG, a card JSON, or a Casual Character Chat export.</p>
+  <label class="file-drop" id="file-drop">
+    <input type="file" id="import-file" accept=".png,.json" hidden>
+    <span>Drop a card here, or click to choose a file</span>
+  </label>
+  <div class="library-cols">
+    <div><h4>Characters</h4><ul class="library-list" id="character-list"></ul></div>
+    <div><h4>Personas</h4><ul class="library-list" id="persona-list"></ul></div>
+  </div>
+  <form method="dialog"><button class="btn btn-ghost">Close</button></form>
+</dialog>
+
+<dialog class="sheet" id="setup-sheet">
+  <h3 id="setup-title">Start a conversation</h3>
+  <div id="setup-body"></div>
+  <div class="sheet-actions">
+    <button class="btn btn-primary" id="setup-confirm">Start</button>
+    <form method="dialog"><button class="btn btn-ghost">Cancel</button></form>
+  </div>
+</dialog>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
