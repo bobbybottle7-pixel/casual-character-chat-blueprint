@@ -69,6 +69,15 @@ All optional — see `.env.example`.
 | `CAM_CLAUDE_RESEARCH_DIR` | `~/cam-claude-research` | Where Deep Research writes reports |
 | `ANTHROPIC_API_KEY` | unset | Forces metered API-key auth |
 | `CAM_CLAUDE_DEBUG` | unset | Logs the tool list and MCP status the CLI reports at session start |
+| `CAM_CLAUDE_HOST` | `127.0.0.1` | Bind address. See the note below before changing it. |
+
+### A note on the bind address
+
+The server listens on loopback only. This process holds your Claude credentials
+and, in Code mode, edits files and runs commands in a folder you choose — so it
+should not be reachable from the network you happen to be on. `CAM_CLAUDE_HOST`
+overrides it, but if you point it at `0.0.0.0` you are publishing an unauthenticated
+remote-code-execution endpoint to your LAN. Put authentication in front of it first.
 
 ---
 
