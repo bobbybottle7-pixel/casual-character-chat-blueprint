@@ -57,6 +57,7 @@ export class SessionRunner {
 
   start(resume?: string) {
     if (this.#query) return;
+    this.#logSessionStart(resume);
     this.#query = query({
       prompt: this.#messages(),
       options: modeToOptions(this.mode, this.#ctx, {
@@ -65,6 +66,30 @@ export class SessionRunner {
       }),
     });
     void this.#pump();
+  }
+
+  /**
+   * With CAM_CLAUDE_DEBUG set, records what each session actually started with.
+   *
+   * This exists because the prompt a session runs on is decided once, at its
+   * first request, and is then invisible — when a prompt change appears not to
+   * work, the only way to tell a lifecycle bug from a model choice is to see
+   * whether the new session got the new prompt at all.
+   */
+  #logSessionStart(resume?: string) {
+    if (!process.env.CAM_CLAUDE_DEBUG) return;
+    const spec = this.mode.systemPrompt(this.#ctx);
+    const text = typeof spec === 'string' ? spec : JSON.stringify(spec);
+    console.log(
+      `[cam-claude] session start  conv=${this.conversationId}  mode=${this.mode.id}  ` +
+        `resume=${resume ?? 'NONE'}  promptChars=${text.length}  handoff=${this.#handoff ? 'yes' : 'no'}`,
+    );
+  }
+
+  /** The system prompt this runner would send. Used by the inspect script. */
+  previewPrompt(): string {
+    const spec = this.mode.systemPrompt(this.#ctx);
+    return typeof spec === 'string' ? spec : JSON.stringify(spec, null, 2);
   }
 
   close() {

@@ -4,12 +4,21 @@
   "private": true,
   "type": "module",
   "description": "A personal multi-mode Claude app that runs on your own Claude Code login.",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch server/index.ts",
     "start": "tsx server/index.ts",
-    "verify": "tsx scripts/verify-modes.ts",
-    "typecheck": "tsc --noEmit"
+    "verify": "tsx scripts/verify-modes.ts && tsx scripts/verify-sessions.ts",
+    "typecheck": "tsc --noEmit",
+    "dev:start": "tsx scripts/dev.ts start",
+    "dev:stop": "tsx scripts/dev.ts stop",
+    "dev:restart": "tsx scripts/dev.ts restart",
+    "dev:status": "tsx scripts/dev.ts status",
+    "dev:log": "tsx scripts/dev.ts log",
+    "inspect": "tsx scripts/inspect.ts",
+    "e2e": "tsx scripts/e2e.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.0",

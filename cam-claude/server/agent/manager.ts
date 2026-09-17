@@ -7,7 +7,9 @@ import {
   getPersona,
   getWorld,
   listMemories,
+  listMessages,
   recentText,
+  updateConversation,
 } from '../store/repo.js';
 
 const runners = new Map<string, SessionRunner>();
@@ -58,12 +60,64 @@ export function getRunner(conversationId: string): SessionRunner {
   return runner;
 }
 
-/** Tears the session down so the next send rebuilds it with a fresh prompt. */
-export function restart(conversationId: string, handoff?: string) {
+/**
+ * Drops the live session without discarding the SDK session behind it.
+ *
+ * Use this when nothing about the prompt changed — closing a conversation, or
+ * deleting one. To make a prompt change take effect, use `invalidatePrompt`.
+ */
+export function restart(conversationId: string) {
+  runners.get(conversationId)?.close();
+  runners.delete(conversationId);
+  handoffs.delete(conversationId);
+}
+
+/**
+ * Call this whenever anything the system prompt is built from has changed:
+ * the mode, the characters, the persona, the working directory, a memory.
+ *
+ * Why it has to exist: the SDK snapshots the system prompt on a session's
+ * first request and keeps using that snapshot for the life of the session,
+ * including across `resume`. Rebuilding the prompt is therefore not enough —
+ * dropping the runner and letting it resume the same session silently restores
+ * the old prompt, and the change looks applied while doing nothing at all.
+ *
+ * So the SDK session id is cleared, which forces a genuinely new session on the
+ * next turn, and a recap of the recent exchange is carried into it so the new
+ * session does not start blind.
+ */
+export function invalidatePrompt(conversationId: string, reason: string) {
+  const handoff = buildHandoff(conversationId, reason);
+  updateConversation(conversationId, { sdk_session_id: null });
   runners.get(conversationId)?.close();
   runners.delete(conversationId);
   if (handoff) handoffs.set(conversationId, handoff);
   else handoffs.delete(conversationId);
+}
+
+/**
+ * A short recap of the recent exchange, folded into the first message of the
+ * replacement session so continuity survives the restart.
+ */
+function buildHandoff(conversationId: string, reason: string): string {
+  const recent = listMessages(conversationId)
+    .filter((m) => m.role !== 'system' && m.text.trim())
+    .slice(-6)
+    .map((m) => `${m.role === 'user' ? 'User' : 'You'}: ${m.text.slice(0, 500)}`)
+    .join('\n');
+
+  if (!recent) return '';
+  return [
+    `[Continuing a conversation already in progress — ${reason}.`,
+    'Recent exchange, for context:',
+    recent,
+    'Pick up from here, following the instructions above.]',
+  ].join('\n');
+}
+
+/** The recap waiting for the next session. Exposed so tests can assert on it. */
+export function pendingHandoff(conversationId: string): string | undefined {
+  return handoffs.get(conversationId);
 }
 
 export function peekRunner(conversationId: string): SessionRunner | undefined {

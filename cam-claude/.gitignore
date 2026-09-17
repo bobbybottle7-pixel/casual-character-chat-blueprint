@@ -2,3 +2,4 @@ node_modules/
 data/
 .env
 *.log
+# dev server pid + log live under data/, which is already ignored

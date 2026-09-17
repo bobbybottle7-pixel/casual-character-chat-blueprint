@@ -147,9 +147,43 @@ The importers are ported from that app's `script.js` and rewritten for Node.
 
 ```bash
 npm run dev        # server with reload on http://localhost:8787
-npm run verify     # mode boundaries, prompt hygiene, tool schemas — no API calls
+npm run verify     # boundaries, prompt hygiene, tool schemas, session lifecycle
 npm run typecheck  # tsc --noEmit
 ```
+
+### The debugging toolkit
+
+These exist because of specific ways debugging this app goes wrong. Each one
+replaces a habit that produced misleading answers.
+
+| Command | What it is for |
+|---|---|
+| `npm run dev:start` / `dev:stop` / `dev:restart` / `dev:status` / `dev:log` | Run the server in the background. Stopping it by matching its command line also matches the shell doing the matching, and `npx tsx` leaves a grandchild holding the port — so this uses a pid file and signals the whole process group. |
+| `npm run inspect` | List conversations. |
+| `npm run inspect <id>` | Print the exact system prompt a conversation would send, plus the context behind it. |
+| `npm run inspect <id> -- --grep foo` | Answer "is this actually in the prompt?" and exit non-zero if not. |
+| `npm run e2e` | Run every end-to-end scenario. **Calls Claude, so it costs tokens** and is not part of `verify`. |
+| `npm run e2e <name>` | Run one: `mode-isolation`, `prompt-refresh`, `gm-dice`, `websearch`. |
+| `CAM_CLAUDE_DEBUG=1` | Log what each session started with: mode, whether it resumed, prompt size, handoff. |
+
+Three rules this toolkit encodes, learned the hard way:
+
+**Never test with `sleep`.** `scripts/lib/client.ts` subscribes to the event
+stream and resolves when the turn actually ends. A guessed delay reports a slow
+reply as a failure and wastes time on a fast one.
+
+**Separate prompt problems from lifecycle problems before theorising.** When a
+change seems not to reach Claude, `npm run inspect <id> --grep` answers "is it
+in the prompt?" for free. Only if it *is* in the prompt is there a session bug
+to chase.
+
+**Don't assert on wording a mode is designed to resist.** Asking a roleplay
+character an out-of-character question proves nothing: staying in character is
+the correct answer. Assert on the prompt for anything that must be exact, and
+keep behavioural assertions tolerant.
+
+Findings that are real but not yet fixed live in `KNOWN-ISSUES.md`, so they are
+not rediscovered as though new.
 
 `npm run verify` is the cheap guard worth running before any commit. It checks
 three things that are easy to break silently:

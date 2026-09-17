@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getMode, listModeSummaries, requireMode } from '../modes/index.js';
-import { getRunner, peekRunner, restart } from '../agent/manager.js';
+import { getRunner, invalidatePrompt, peekRunner, restart } from '../agent/manager.js';
 import type { CamEvent } from '../agent/events.js';
 import {
   addMemory,
@@ -65,31 +65,36 @@ conversationRoutes.patch('/conversations/:id', (req, res) => {
   }
 
   const { title, cwd, personaId, characterIds, modeId } = req.body ?? {};
+
+  if (modeId !== undefined && modeId !== conv.mode_id && !getMode(modeId)) {
+    res.status(400).json({ error: `Unknown mode: ${modeId}` });
+    return;
+  }
+
+  // The title is the one field the prompt is not built from, so changing it
+  // alone must not throw away the session.
   if (title !== undefined) updateConversation(conv.id, { title });
   if (cwd !== undefined) updateConversation(conv.id, { cwd });
   if (personaId !== undefined) updateConversation(conv.id, { persona_id: personaId });
   if (Array.isArray(characterIds)) setConversationCharacters(conv.id, characterIds);
 
-  if (modeId !== undefined && modeId !== conv.mode_id) {
-    if (!getMode(modeId)) {
-      res.status(400).json({ error: `Unknown mode: ${modeId}` });
-      return;
-    }
-    // A mode change needs a new SDK session, because the system prompt is
-    // snapshotted on a session's first request. Carry a recap so the new
-    // session is not starting blind, and leave a visible divider in the
-    // transcript so the switch is never silent.
-    const handoff = buildHandoff(conv.id, conv.mode_id, modeId);
-    updateConversation(conv.id, { mode_id: modeId, sdk_session_id: null });
+  const switchingMode = modeId !== undefined && modeId !== conv.mode_id;
+  if (switchingMode) {
+    updateConversation(conv.id, { mode_id: modeId });
+    // A visible divider, so a mode change is never silent.
     addMessage({
       conversationId: conv.id,
       role: 'system',
       text: `Switched from ${requireMode(conv.mode_id).label} to ${requireMode(modeId).label}.`,
     });
-    restart(conv.id, handoff);
-  } else if (cwd !== undefined || personaId !== undefined || Array.isArray(characterIds)) {
-    // Prompt inputs changed, so the next turn needs a rebuilt session.
-    restart(conv.id);
+  }
+
+  const reason = switchingMode
+    ? `it just switched from ${requireMode(conv.mode_id).label} mode to ${requireMode(modeId).label} mode`
+    : 'its setup was changed';
+
+  if (switchingMode || cwd !== undefined || personaId !== undefined || Array.isArray(characterIds)) {
+    invalidatePrompt(conv.id, reason);
   }
 
   res.json(getConversation(conv.id));
@@ -199,23 +204,7 @@ conversationRoutes.post('/conversations/:id/memories', (req, res) => {
     return;
   }
   addMemory(req.params.id, req.body?.kind === 'auto' ? 'auto' : 'pinned', text.trim());
-  restart(req.params.id);
+  invalidatePrompt(req.params.id, 'a new memory was added');
   res.status(201).json(listMemories(req.params.id));
 });
 
-/** A short recap of recent turns, folded into the first message of a new session. */
-function buildHandoff(conversationId: string, fromMode: string, toMode: string): string {
-  const recent = listMessages(conversationId)
-    .filter((m) => m.role !== 'system')
-    .slice(-6)
-    .map((m) => `${m.role === 'user' ? 'User' : 'You'}: ${m.text.slice(0, 500)}`)
-    .join('\n');
-
-  if (!recent) return '';
-  return [
-    `[Continuing a conversation that just switched from ${fromMode} mode to ${toMode} mode.`,
-    'Recent exchange, for context:',
-    recent,
-    'Pick up from here under this mode\'s instructions.]',
-  ].join('\n');
-}
