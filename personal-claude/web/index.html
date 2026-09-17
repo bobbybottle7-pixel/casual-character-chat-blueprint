@@ -20,6 +20,7 @@
       <label for="project-select">Project</label>
       <div class="row">
         <select id="project-select"></select>
+        <button id="new-project" class="icon-btn" title="New project" aria-label="New project">+</button>
         <button id="edit-project" class="icon-btn" title="Project settings" aria-label="Project settings">⚙</button>
       </div>
     </div>
@@ -41,6 +42,8 @@
     <header id="chat-head">
       <h2 id="chat-title">New conversation</h2>
       <div class="row">
+        <button id="rename-chat" class="ghost-btn" title="Rename conversation">Rename</button>
+        <button id="branch-chat" class="ghost-btn" title="Continue in a new branch, keeping this one">Branch</button>
         <button id="export-md" class="ghost-btn" title="Export as Markdown">Export</button>
         <button id="delete-chat" class="ghost-btn danger" title="Delete conversation">Delete</button>
       </div>
@@ -92,7 +95,9 @@
     </label>
     <p id="p-mcp-error" class="field-error hidden"></p>
     <div class="dialog-actions">
-      <button value="cancel" class="ghost-btn">Cancel</button>
+      <button id="p-delete" value="delete" class="ghost-btn danger" formnovalidate>Delete project</button>
+      <span class="spacer"></span>
+      <button value="cancel" class="ghost-btn" formnovalidate>Cancel</button>
       <button id="p-save" value="save" class="primary-btn">Save</button>
     </div>
   </form>

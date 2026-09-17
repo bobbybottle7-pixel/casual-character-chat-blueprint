@@ -10,6 +10,7 @@ const state = {
   turnId: null,
   streaming: false,
   stopped: false,
+  forkNext: false,
 };
 
 const ALL_TOOLS = ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Write", "Edit", "Bash", "TodoWrite"];
@@ -61,6 +62,16 @@ async function loadProjects() {
   }
   select.value = state.projectId;
   localStorage.setItem("pc.project", state.projectId);
+}
+
+// Project ids become directory names, so they are derived rather than free
+// text: assertId on the server rejects anything outside [a-z0-9-].
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
 }
 
 const currentProject = () => state.projects.find((p) => p.id === state.projectId);
@@ -125,6 +136,8 @@ async function openConversation(sessionId, title) {
 
 function newConversation() {
   state.sessionId = null;
+  state.forkNext = false;
+  $("branch-chat").classList.remove("armed");
   $("chat-title").textContent = "New conversation";
   showEmptyState();
   setStatus("");
@@ -255,12 +268,19 @@ async function send() {
     text,
     attachments: state.attachments,
     turnId: crypto.randomUUID(),
+    fork: state.forkNext && Boolean(state.sessionId),
   };
+  const wasFork = payload.fork;
+  const forkedFrom = wasFork ? $("chat-title").textContent : null;
   state.turnId = payload.turnId;
   state.stopped = false;
 
   if (recognition) {
     try { recognition.stop(); } catch { /* not started */ }
+  }
+  if (state.forkNext) {
+    state.forkNext = false;
+    $("branch-chat").classList.remove("armed");
   }
   $("input").value = "";
   $("input").style.height = "auto";
@@ -312,6 +332,7 @@ async function send() {
 
         if (name === "session") {
           state.sessionId = data.sessionId;
+          if (wasFork) $("chat-title").textContent = "New branch";
         } else if (name === "error") {
           finalizeLive();
           appendError(data.message);
@@ -354,6 +375,19 @@ async function send() {
     finalizeLive();
     setStreaming(false);
     state.turnId = null;
+    if (wasFork && state.sessionId) {
+      const title = `${forkedFrom} (branch)`;
+      try {
+        await api(`/api/sessions/${encodeURIComponent(state.sessionId)}?${qs()}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+        $("chat-title").textContent = title;
+      } catch {
+        // A failed retitle leaves a duplicate name, not a broken branch.
+      }
+    }
     loadConversations($("search").value.trim());
   }
 }
@@ -450,8 +484,21 @@ function openProjectDialog() {
 }
 
 async function saveProject(event) {
-  if (event.submitter?.value !== "save") return;
   const project = currentProject();
+
+  if (event.submitter?.value === "delete") {
+    if (!project) return;
+    if (!confirm(`Delete the project "${project.name}" and everything in it? This cannot be undone.`)) return;
+    await api(`/api/projects/${encodeURIComponent(project.id)}`, { method: "DELETE" });
+    state.projectId = null;
+    await loadProjects();
+    $("project-select").value = state.projectId;
+    newConversation();
+    setStatus(`Deleted project "${project.name}".`);
+    return;
+  }
+
+  if (event.submitter?.value !== "save") return;
   const tools = [...$("p-tools").querySelectorAll("input:checked")].map((i) => i.value);
 
   const raw = $("p-mcp").value.trim();
@@ -601,6 +648,70 @@ function wire() {
     newConversation();
   });
   $("edit-project").addEventListener("click", openProjectDialog);
+
+  $("new-project").addEventListener("click", async () => {
+    const name = prompt("Name the new project");
+    if (!name?.trim()) return;
+    const id = slugify(name);
+    if (!id) {
+      setStatus("That name has no letters or numbers to build an id from.");
+      return;
+    }
+    if (state.projects.some((p) => p.id === id)) {
+      setStatus(`A project called "${id}" already exists.`);
+      return;
+    }
+    await api("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id,
+        name: name.trim(),
+        systemPrompt: "",
+        preset: null,
+        model: "claude-opus-5",
+        tools: ["Read", "Glob", "Grep", "WebSearch", "WebFetch"],
+        permissionMode: "default",
+        mcpServers: {},
+      }),
+    });
+    state.projectId = id;
+    localStorage.setItem("pc.project", id);
+    await loadProjects();
+    $("project-select").value = id;
+    newConversation();
+    setStatus(`Created project "${name.trim()}". Open ⚙ to set its prompt and tools.`);
+  });
+
+  $("rename-chat").addEventListener("click", async () => {
+    if (!state.sessionId) {
+      setStatus("Send a message first — there is no conversation to rename yet.");
+      return;
+    }
+    const next = prompt("Rename conversation", $("chat-title").textContent);
+    if (!next?.trim()) return;
+    await api(`/api/sessions/${encodeURIComponent(state.sessionId)}?${qs()}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: next.trim() }),
+    });
+    $("chat-title").textContent = next.trim();
+    loadConversations($("search").value.trim());
+  });
+
+  $("branch-chat").addEventListener("click", () => {
+    if (!state.sessionId) {
+      setStatus("Nothing to branch from yet.");
+      return;
+    }
+    state.forkNext = !state.forkNext;
+    $("branch-chat").classList.toggle("armed", state.forkNext);
+    setStatus(
+      state.forkNext
+        ? "Branching: your next message starts a new conversation from this point, leaving this one as it is."
+        : ""
+    );
+  });
   $("project-dialog").querySelector("form").addEventListener("submit", saveProject);
 
   let searchTimer;

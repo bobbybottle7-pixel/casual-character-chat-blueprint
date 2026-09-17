@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile, readdir, rm } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { join, dirname, resolve } from "node:path";
+import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -141,7 +142,24 @@ export async function save(project) {
   return clean;
 }
 
+// Claude Code stores a project's transcripts under a directory named after its
+// cwd with every non-alphanumeric character replaced by a dash.
+function transcriptDir(dir) {
+  const configDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
+  return join(configDir, "projects", resolve(dir).replace(/[^a-zA-Z0-9]/g, "-"));
+}
+
 export async function remove(id) {
+  const dir = projectDir(id);
   await rm(metaPath(id), { force: true });
-  await rm(projectDir(id), { recursive: true, force: true });
+  await rm(dir, { recursive: true, force: true });
+
+  // The confirmation says "and everything in it", so leaving the conversation
+  // history behind would both contradict that and strand personal data the
+  // user believes they deleted.
+  const transcripts = transcriptDir(dir);
+  const projectsRoot = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "projects");
+  if (transcripts.startsWith(projectsRoot + "/") && transcripts.length > projectsRoot.length + 1) {
+    await rm(transcripts, { recursive: true, force: true });
+  }
 }

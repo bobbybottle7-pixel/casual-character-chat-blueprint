@@ -174,7 +174,12 @@ async function handleChat(req, res) {
   } else if (project.systemPrompt?.trim()) {
     options.systemPrompt = { type: "custom", prompt: project.systemPrompt };
   }
-  if (body.sessionId) options.resume = body.sessionId;
+  if (body.sessionId) {
+    options.resume = body.sessionId;
+    // Fork copies the history into a new session and leaves the original
+    // untouched, so the new session_id arrives on the init message.
+    if (body.fork) options.forkSession = true;
+  }
 
   const run = query({ prompt: singleTurn(), options });
   activeTurns.set(turnId, { run, abortController });

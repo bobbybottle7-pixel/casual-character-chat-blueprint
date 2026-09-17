@@ -224,3 +224,6 @@ dialog label.inline input { width: auto; }
   animation: pulse 1.3s ease-in-out infinite;
 }
 @keyframes pulse { 50% { opacity: 0.45; } }
+
+.dialog-actions .spacer { flex: 1; }
+#branch-chat.armed { color: var(--accent); border-color: var(--accent); }
