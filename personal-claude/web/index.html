@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personal Claude</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✳️</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <aside id="sidebar">
+    <header class="sidebar-head">
+      <h1>Personal Claude</h1>
+      <button id="toggle-theme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+    </header>
+
+    <div class="field">
+      <label for="project-select">Project</label>
+      <div class="row">
+        <select id="project-select"></select>
+        <button id="edit-project" class="icon-btn" title="Project settings" aria-label="Project settings">⚙</button>
+      </div>
+    </div>
+
+    <button id="new-chat" class="primary-btn">New conversation</button>
+
+    <div class="field">
+      <input id="search" type="search" placeholder="Search conversations…" autocomplete="off">
+    </div>
+
+    <nav id="conversations" aria-label="Conversations"></nav>
+
+    <footer class="sidebar-foot">
+      <span id="auth-note">Using your Claude plan</span>
+    </footer>
+  </aside>
+
+  <main id="main">
+    <header id="chat-head">
+      <h2 id="chat-title">New conversation</h2>
+      <div class="row">
+        <button id="export-md" class="ghost-btn" title="Export as Markdown">Export</button>
+        <button id="delete-chat" class="ghost-btn danger" title="Delete conversation">Delete</button>
+      </div>
+    </header>
+
+    <div id="messages" aria-live="polite"></div>
+
+    <div id="composer">
+      <div id="attachments" class="hidden"></div>
+      <div class="composer-row">
+        <textarea id="input" rows="1" placeholder="Message Claude…  (Enter to send, Shift+Enter for newline)"></textarea>
+        <div class="composer-actions">
+          <button id="attach" class="icon-btn" title="Attach files" aria-label="Attach files">📎</button>
+          <button id="send" class="primary-btn">Send</button>
+          <button id="stop" class="ghost-btn danger hidden">Stop</button>
+        </div>
+      </div>
+      <input id="file-input" type="file" multiple hidden>
+      <p id="status" class="status"></p>
+    </div>
+  </main>
+
+</div>
+
+<dialog id="project-dialog">
+  <form method="dialog">
+    <h3>Project settings</h3>
+    <label>Name <input id="p-name" type="text" required></label>
+    <label>Model
+      <select id="p-model">
+        <option value="claude-opus-5">Claude Opus 5</option>
+        <option value="claude-sonnet-5">Claude Sonnet 5</option>
+        <option value="claude-haiku-4-5">Claude Haiku 4.5</option>
+      </select>
+    </label>
+    <label>System prompt
+      <textarea id="p-prompt" rows="6" placeholder="How should Claude behave in this project?"></textarea>
+    </label>
+    <label>Tools</label>
+    <div id="p-tools" class="tool-grid"></div>
+    <label class="inline">
+      <input id="p-preset" type="checkbox">
+      Use the Claude Code agent prompt (for coding projects)
+    </label>
+    <div class="dialog-actions">
+      <button value="cancel" class="ghost-btn">Cancel</button>
+      <button id="p-save" value="save" class="primary-btn">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="vendor/marked.min.js"></script>
+<script src="vendor/purify.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

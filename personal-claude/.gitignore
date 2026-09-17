@@ -1,0 +1,5 @@
+node_modules/
+
+# Your projects and their contents are personal data, not part of the app.
+# The three default projects are recreated on first run.
+projects/
