@@ -4,8 +4,9 @@ A personal Claude workspace you run on your own machine, powered by your own
 Claude subscription. Conversations, projects, and attachments stay on your disk.
 
 It is built on the [Claude Agent SDK](https://code.claude.com/docs/en/agent-sdk/overview),
-which means it inherits real capabilities — file access, shell, web search — not
-just a chat box. Projects turn those into workspaces you can actually work in.
+which means it inherits real capabilities — file access, shell, web search, and
+MCP servers — not just a chat box. Projects turn those into workspaces you can
+actually work in.
 
 ---
 
@@ -58,11 +59,35 @@ Edit a project with the ⚙ button. Changes apply to new conversations — an
 existing conversation keeps the prompt it started with, by design, so its
 history stays coherent.
 
+### MCP servers
+
+Each project can connect its own MCP servers, using the same JSON shape Claude
+Code uses, so an existing config pastes straight in:
+
+```json
+{
+  "github": {
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-github"],
+    "env": { "GITHUB_TOKEN": "..." }
+  },
+  "internal": { "type": "http", "url": "https://mcp.example.com/sse" }
+}
+```
+
+Configuring a server is the opt-in for its tools — you don't also have to tick
+them in the tool list, since MCP tools are named `mcp__<server>__<tool>` and
+aren't known in advance. Malformed entries are dropped and reported rather than
+passed through, because a stdio entry launches a process.
+
 ---
 
 ## Using it
 
 - **Enter** sends, **Shift+Enter** makes a newline.
+- **🎙 Dictate** appends speech to whatever is already in the composer. Chrome
+  and Safari only — the button hides elsewhere, and dictation needs network
+  access to the browser's recognizer.
 - **Drag, paste, or 📎** to attach. Images go inline; other files are written
   into the project directory and Claude reads them from there.
 - **Stop** interrupts a running turn. Partial output is kept.
