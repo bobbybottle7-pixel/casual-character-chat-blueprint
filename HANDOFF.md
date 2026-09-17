@@ -3,7 +3,7 @@
 **For:** whoever (human or AI) picks this up next.
 **Repo:** `bobbybottle7-pixel/casual-character-chat-blueprint`
 **Branch:** `claude/personal-claude-platform-7g2mx4`
-**Head:** `abec839`
+**Head:** run `git log --oneline -1` — a commit cannot contain its own hash
 **Status:** Working and verified end to end. Not finished — see [What's left](#whats-left).
 
 ---
@@ -85,7 +85,7 @@ Application logic alone (`server/*.mjs` + `web/app.js`): **1,350 lines.**
 ### Commits on this branch
 
 ```
-abec839 Update handoff for branching, rename and project management
+<head>  Update handoff for branching, rename and project management
 85a33ca Add conversation branching, renaming and project management
 32234d1 Add engineering handoff document
 ad1492f Document MCP servers and voice input
