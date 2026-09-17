@@ -54,12 +54,39 @@ const DEFAULTS = [
   },
 ];
 
+// MCP configs are the standard stdio / http / sse shapes, validated rather than
+// trusted: a stdio entry launches a process, so a malformed one should be
+// dropped here instead of failing deep inside the SDK.
+function normalizeMcpServers(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [name, config] of Object.entries(raw)) {
+    if (!config || typeof config !== "object" || !/^[\w.-]{1,64}$/.test(name)) continue;
+    if (config.type === "http" || config.type === "sse") {
+      if (typeof config.url !== "string" || !/^https?:\/\//.test(config.url)) continue;
+      out[name] = {
+        type: config.type,
+        url: config.url,
+        ...(config.headers && typeof config.headers === "object" ? { headers: config.headers } : {}),
+      };
+    } else if (typeof config.command === "string" && config.command.trim()) {
+      out[name] = {
+        command: config.command,
+        args: Array.isArray(config.args) ? config.args.map(String) : [],
+        ...(config.env && typeof config.env === "object" ? { env: config.env } : {}),
+      };
+    }
+  }
+  return out;
+}
+
 function normalize(raw, id) {
   return {
     id,
     name: typeof raw.name === "string" && raw.name.trim() ? raw.name.trim() : id,
     systemPrompt: typeof raw.systemPrompt === "string" ? raw.systemPrompt : "",
     preset: raw.preset === "claude_code" ? "claude_code" : null,
+    mcpServers: normalizeMcpServers(raw.mcpServers),
     model: typeof raw.model === "string" && raw.model ? raw.model : "claude-opus-5",
     tools: Array.isArray(raw.tools) ? raw.tools.filter((t) => typeof t === "string") : READ_ONLY_TOOLS,
     permissionMode: typeof raw.permissionMode === "string" ? raw.permissionMode : "default",

@@ -53,6 +53,7 @@
       <div class="composer-row">
         <textarea id="input" rows="1" placeholder="Message Claude…  (Enter to send, Shift+Enter for newline)"></textarea>
         <div class="composer-actions">
+          <button id="mic" class="icon-btn" title="Dictate" aria-label="Dictate">🎙</button>
           <button id="attach" class="icon-btn" title="Attach files" aria-label="Attach files">📎</button>
           <button id="send" class="primary-btn">Send</button>
           <button id="stop" class="ghost-btn danger hidden">Stop</button>
@@ -85,6 +86,11 @@
       <input id="p-preset" type="checkbox">
       Use the Claude Code agent prompt (for coding projects)
     </label>
+    <label>MCP servers <span class="hint">JSON, same shape as Claude Code's mcpServers</span>
+      <textarea id="p-mcp" rows="6" spellcheck="false"
+        placeholder='{ "github": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"] } }'></textarea>
+    </label>
+    <p id="p-mcp-error" class="field-error hidden"></p>
     <div class="dialog-actions">
       <button value="cancel" class="ghost-btn">Cancel</button>
       <button id="p-save" value="save" class="primary-btn">Save</button>

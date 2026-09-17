@@ -259,6 +259,9 @@ async function send() {
   state.turnId = payload.turnId;
   state.stopped = false;
 
+  if (recognition) {
+    try { recognition.stop(); } catch { /* not started */ }
+  }
   $("input").value = "";
   $("input").style.height = "auto";
   clearAttachments();
@@ -427,6 +430,9 @@ function openProjectDialog() {
   $("p-model").value = project.model;
   $("p-prompt").value = project.systemPrompt;
   $("p-preset").checked = project.preset === "claude_code";
+  const mcp = project.mcpServers ?? {};
+  $("p-mcp").value = Object.keys(mcp).length ? JSON.stringify(mcp, null, 2) : "";
+  $("p-mcp-error").classList.add("hidden");
 
   const grid = $("p-tools");
   grid.innerHTML = "";
@@ -447,6 +453,19 @@ async function saveProject(event) {
   if (event.submitter?.value !== "save") return;
   const project = currentProject();
   const tools = [...$("p-tools").querySelectorAll("input:checked")].map((i) => i.value);
+
+  const raw = $("p-mcp").value.trim();
+  let mcpServers = {};
+  if (raw) {
+    try {
+      mcpServers = JSON.parse(raw);
+    } catch (error) {
+      // dialog already closed on submit, so report it where the user will look
+      setStatus(`MCP config is not valid JSON: ${error.message}`);
+      return;
+    }
+  }
+
   await api("/api/projects", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -456,12 +475,93 @@ async function saveProject(event) {
       model: $("p-model").value,
       systemPrompt: $("p-prompt").value,
       preset: $("p-preset").checked ? "claude_code" : null,
+      mcpServers,
       tools,
       permissionMode: project.permissionMode,
     }),
   });
   await loadProjects();
-  setStatus("Project saved. New conversations use the updated settings.");
+  const saved = currentProject();
+  const count = Object.keys(saved?.mcpServers ?? {}).length;
+  const dropped = Object.keys(mcpServers).length - count;
+  setStatus(
+    `Project saved. New conversations use the updated settings.` +
+      (count ? `  ${count} MCP server(s) configured.` : "") +
+      (dropped > 0 ? `  ${dropped} MCP entr(y/ies) rejected as malformed.` : "")
+  );
+}
+
+// ---------- Voice input ----------
+
+// Web Speech API: Chrome and Safari only, and it needs network access to
+// Google's recogniser. Absent elsewhere, so the button hides rather than
+// sitting there doing nothing.
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+
+function setupVoice() {
+  const mic = $("mic");
+  if (!SpeechRecognition) {
+    mic.classList.add("hidden");
+    return;
+  }
+
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = navigator.language || "en-US";
+
+  // Text already in the box when dictation started; interim results are
+  // rewritten on every event, so they must not accumulate on top of it.
+  let base = "";
+  let listening = false;
+
+  const stopListening = () => {
+    listening = false;
+    mic.classList.remove("recording");
+    mic.title = "Dictate";
+  };
+
+  recognition.addEventListener("result", (event) => {
+    let finalText = "";
+    let interim = "";
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      if (result.isFinal) finalText += result[0].transcript;
+      else interim += result[0].transcript;
+    }
+    if (finalText) base = `${base}${base && !base.endsWith(" ") ? " " : ""}${finalText.trim()}`;
+    $("input").value = interim ? `${base}${base ? " " : ""}${interim.trim()}` : base;
+    autoGrow();
+  });
+
+  recognition.addEventListener("error", (event) => {
+    setStatus(
+      event.error === "not-allowed"
+        ? "Microphone permission denied."
+        : `Dictation stopped: ${event.error}`
+    );
+    stopListening();
+  });
+
+  recognition.addEventListener("end", stopListening);
+
+  mic.addEventListener("click", () => {
+    if (listening) {
+      recognition.stop();
+      return;
+    }
+    base = $("input").value.trim();
+    try {
+      recognition.start();
+    } catch {
+      return;
+    }
+    listening = true;
+    mic.classList.add("recording");
+    mic.title = "Stop dictating";
+    setStatus("Listening…");
+  });
 }
 
 // ---------- Wiring ----------
@@ -560,6 +660,7 @@ function wire() {
 (async function start() {
   applyTheme(localStorage.getItem("pc.theme") || "dark");
   wire();
+  setupVoice();
   await loadProjects();
   newConversation();
 })();

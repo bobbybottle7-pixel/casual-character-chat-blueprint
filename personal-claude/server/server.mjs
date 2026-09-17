@@ -141,6 +141,12 @@ async function handleChat(req, res) {
   }
 
   const allowed = new Set(project.tools);
+  const mcpServers = project.mcpServers ?? {};
+  const hasMcp = Object.keys(mcpServers).length > 0;
+  // MCP tools arrive as mcp__<server>__<tool>, which no project tool list names.
+  // Configuring a server is the opt-in, so its tools are allowed on that basis.
+  const isAllowed = (name) => allowed.has(name) || (hasMcp && name.startsWith("mcp__"));
+
   const options = {
     cwd: dir,
     model: project.model,
@@ -153,8 +159,9 @@ async function handleChat(req, res) {
     abortController,
     settingSources: [],
     env: CHILD_ENV,
+    ...(hasMcp ? { mcpServers } : {}),
     canUseTool: async (toolName, input) =>
-      allowed.has(toolName)
+      isAllowed(toolName)
         ? { behavior: "allow", updatedInput: input }
         : { behavior: "deny", message: `${toolName} is not enabled for this project.` },
   };
