@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover so the layout reaches under a phone's rounded corners
+     and notch; the CSS uses env(safe-area-inset-*) to stay clear of them. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ALLAI</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>ALLAI</h1>
+  <span class="tagline">Your models. Your memory. Your money.</span>
+</header>
+
+<main>
+
+  <!-- ============================ CHAT ============================ -->
+  <section class="screen" id="screen-chat">
+    <div class="chat-bar">
+      <select id="model-select" aria-label="Model"></select>
+      <button type="button" class="btn secondary small" id="new-chat-btn">New</button>
+    </div>
+    <div class="chat-bar" style="border-bottom:1px solid var(--border);flex-wrap:wrap;gap:5px" id="model-facts"></div>
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <textarea id="composer-input" rows="1" placeholder="Ask anything…" aria-label="Message"></textarea>
+      <button type="button" class="btn" id="send-btn">Send</button>
+      <button type="button" class="btn danger" id="stop-btn" hidden>Stop</button>
+    </div>
+  </section>
+
+  <!-- ============================ MODELS ============================ -->
+  <section class="screen" id="screen-models">
+    <h2>Models</h2>
+    <p class="hint">
+      Everything below is read from the provider itself, not written into ALLAI by hand.
+      Where a provider does not publish something, ALLAI says so instead of guessing.
+    </p>
+    <div id="models-list"></div>
+  </section>
+
+  <!-- ============================ CHARACTERS ============================ -->
+  <section class="screen" id="screen-characters">
+    <h2>Characters</h2>
+    <div class="banner info">Not built yet — this is Milestone 3.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Create AI characters with a name, personality, background, speaking style, goals,
+        their relationship to you, their own memory and an optional picture. Characters will be
+        saved as plain data, so they can be exported, shared and edited without touching any code.
+      </p>
+      <p>
+        The groundwork is already here: characters have their own place in storage, and the chat
+        screen already sends a system prompt, which is what a character is made of.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ COUNCIL ============================ -->
+  <section class="screen" id="screen-council">
+    <h2>Council</h2>
+    <div class="banner info">Not built yet — this is Milestone 4.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Put one question to several different models, then have a final model read all their
+        answers and write a combined one.
+      </p>
+      <p>
+        An honesty rule is built into the plan: if only one model is configured, Council will say
+        plainly that it is running with one model. It will never fake a panel by asking a single
+        model to play several parts.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ LAB ============================ -->
+  <section class="screen" id="screen-lab">
+    <h2>Model Lab</h2>
+    <div class="banner info">Not built yet — this is Milestone 5.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Send the same prompt to several models side by side and compare what comes back, with the
+        time each one took, the tokens each one used and the cost where it is known.
+      </p>
+      <p>
+        It will show you the results and let you judge. It will not tell you which model is
+        "best", because that depends on what you are doing.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ MEMORY ============================ -->
+  <section class="screen" id="screen-memory">
+    <h2>Memory</h2>
+    <p class="hint">
+      Permanent memory: short facts sent with every message, on every model. ALLAI never
+      writes anything here on its own — only what you type below.
+    </p>
+
+    <label class="toggle" style="margin-bottom:12px">
+      <input type="checkbox" id="memory-enabled" checked>
+      <span>Use memory in conversations</span>
+    </label>
+
+    <label class="field">
+      <span>Add a memory</span>
+      <textarea id="memory-input" rows="2" placeholder="e.g. I am new to programming — explain things simply."></textarea>
+    </label>
+    <button type="button" class="btn" id="memory-add-btn" style="margin-bottom:16px">Save memory</button>
+
+    <div id="memory-list"></div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>The three kinds of memory</h3>
+      <p><strong>Permanent memory</strong> — the list above. Always sent. Only you put things in it.</p>
+      <p><strong>Conversation history</strong> — the messages in a chat. Saved on this phone, sent with that chat only.</p>
+      <p><strong>Temporary context</strong> — things that exist only while ALLAI is open, and are gone when you close it.</p>
+    </div>
+  </section>
+
+  <!-- ============================ SETTINGS ============================ -->
+  <section class="screen" id="screen-settings">
+    <h2>Settings</h2>
+
+    <h3 style="margin:18px 0 8px">Money</h3>
+    <div id="budget-summary"></div>
+    <div class="card">
+      <label class="toggle"><input type="checkbox" id="protect-balance" checked><span><strong>Protect my balance</strong> — refuse anything that could cost money</span></label>
+      <label class="toggle"><input type="checkbox" id="allow-paid"><span>Allow paid requests (you are still asked each time)</span></label>
+      <label class="field" style="margin-top:12px">
+        <span>Maximum ALLAI may ever spend, in dollars</span>
+        <input type="number" id="budget-usd" min="0" step="0.01" value="0">
+      </label>
+      <button type="button" class="btn secondary small" id="clear-ledger-btn">Clear usage history</button>
+    </div>
+
+    <h3 style="margin:18px 0 8px">Providers</h3>
+    <p class="hint">
+      Keys are kept in this browser on this phone and are never sent anywhere except to the
+      provider they belong to. ALLAI only ever shows you the first and last few characters.
+    </p>
+    <div id="provider-settings"></div>
+
+    <h3 style="margin:18px 0 8px">Personality</h3>
+    <label class="field">
+      <span>System prompt — the standing instruction sent at the top of every conversation</span>
+      <textarea id="system-prompt" rows="4" placeholder="Leave empty to send no instruction at all."></textarea>
+    </label>
+
+    <h3 style="margin:18px 0 8px">Your data</h3>
+    <div class="card">
+      <p>
+        Everything ALLAI knows is stored in this browser on this phone. There is no ALLAI server
+        and no account. Your messages go straight from here to the provider you picked.
+      </p>
+      <button type="button" class="btn danger" id="delete-all-btn">Delete everything</button>
+    </div>
+
+    <p class="hint" style="margin-top:22px">ALLAI v0.1 — Milestone 1</p>
+  </section>
+
+</main>
+
+<nav class="app-nav" id="app-nav"></nav>
+
+<script type="module" src="src/ui/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "allai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ALLAI — a mobile-first personal AI platform. No dependencies on purpose.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test 'test/*.test.mjs'",
+    "build": "node build/build-allai.js",
+    "check": "node build/build-allai.js --check",
+    "serve": "node build/serve.js",
+    "smoke": "node test/browser-smoke.mjs"
+  }
+}

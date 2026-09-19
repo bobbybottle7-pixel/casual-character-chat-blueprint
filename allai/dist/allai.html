@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- viewport-fit=cover so the layout reaches under a phone's rounded corners
+     and notch; the CSS uses env(safe-area-inset-*) to stay clear of them. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ALLAI</title>
+<!-- Single-file build. Generated from allai/src by build/build-allai.js. -->
+<style>
+/* ===========================================================================
+ * ALLAI — styles
+ * Dark and calm rather than neon. Built for a phone held in one hand:
+ * big targets, no horizontal scrolling, text that stays readable.
+ * ======================================================================== */
+
+:root {
+  --bg: #0b0d12;
+  --surface: #14171f;
+  --surface-2: #1c202a;
+  --border: #2a2f3c;
+  --text: #e8ebf2;
+  --text-dim: #99a1b3;
+  --accent: #5b8cff;
+  --accent-soft: #1d2740;
+  --free: #3ecf8e;
+  --paid: #ffb454;
+  --danger: #ff6b6b;
+  --radius: 12px;
+  --tap: 44px;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  line-height: 1.5;
+  overscroll-behavior-y: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  /* dvh, not vh: on a phone the address bar slides away and vh lies about it. */
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* --- header -------------------------------------------------------------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.app-header h1 {
+  font-size: 1.05rem;
+  margin: 0;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+}
+.app-header .tagline {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+  margin-left: auto;
+  text-align: right;
+  max-width: 55%;
+}
+
+/* --- screens ------------------------------------------------------------- */
+main { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.screen { display: none; padding: 14px; }
+.screen.active { display: block; }
+.screen h2 { font-size: 1.15rem; margin: 0 0 4px; }
+.screen .hint { color: var(--text-dim); font-size: 0.85rem; margin: 0 0 14px; }
+
+/* --- bottom navigation --------------------------------------------------- */
+.app-nav {
+  flex: 0 0 auto;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.app-nav::-webkit-scrollbar { display: none; }
+.app-nav button {
+  flex: 1 0 auto;
+  min-width: 62px;
+  min-height: var(--tap);
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  padding: 7px 4px calc(7px + env(safe-area-inset-bottom));
+  cursor: pointer;
+  font-family: inherit;
+  border-top: 2px solid transparent;
+}
+.app-nav button .ico { display: block; font-size: 1.15rem; line-height: 1.3; }
+.app-nav button[aria-current="page"] { color: var(--accent); border-top-color: var(--accent); }
+
+/* --- chat ---------------------------------------------------------------- */
+#screen-chat.active { display: flex; flex-direction: column; height: 100%; padding: 0; }
+.chat-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  flex: 0 0 auto;
+}
+.chat-bar select { flex: 1 1 auto; min-width: 0; }
+.messages { flex: 1 1 auto; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 88%; padding: 10px 13px; border-radius: var(--radius); white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--accent-soft); border: 1px solid #2b3a5e; }
+.msg.assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); }
+.msg.system { align-self: center; background: none; border: 1px dashed var(--border); color: var(--text-dim); font-size: 0.82rem; text-align: center; max-width: 95%; }
+.msg .meta { display: block; margin-top: 7px; font-size: 0.68rem; color: var(--text-dim); }
+.msg.error { align-self: stretch; background: #2a1618; border: 1px solid #5c2b2f; color: #ffd4d4; max-width: 100%; }
+
+.composer {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  align-items: flex-end;
+}
+.composer textarea {
+  flex: 1 1 auto;
+  resize: none;
+  max-height: 140px;
+  min-height: var(--tap);
+  font-family: inherit;
+}
+
+/* --- form controls ------------------------------------------------------- */
+input[type="text"], input[type="password"], input[type="number"], textarea, select {
+  width: 100%;
+  min-height: var(--tap);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  /* 16px minimum, otherwise the phone zooms in every time a field is tapped. */
+  font-size: 16px;
+  font-family: inherit;
+}
+textarea { line-height: 1.45; }
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+button.btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 10px 16px;
+  background: var(--accent);
+  color: #06080f;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 650;
+  font-size: 0.92rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+button.btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+button.btn.danger { background: var(--danger); color: #1a0708; }
+button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* 34px was too small to hit reliably with a thumb; 40px is the floor for
+   any button, even the compact inline ones. */
+button.btn.small { min-height: 40px; padding: 6px 12px; font-size: 0.8rem; }
+
+label.field { display: block; margin: 0 0 14px; }
+label.field > span { display: block; font-size: 0.82rem; color: var(--text-dim); margin-bottom: 5px; }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row.tight { gap: 6px; }
+
+/* --- cards & panels ------------------------------------------------------ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px;
+  margin-bottom: 12px;
+}
+.card h3 { margin: 0 0 6px; font-size: 0.98rem; }
+.card p { margin: 0 0 8px; font-size: 0.86rem; color: var(--text-dim); }
+.card p:last-child { margin-bottom: 0; }
+
+.tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.tag.free { color: var(--free); border-color: #1e6b4a; }
+.tag.paid { color: var(--paid); border-color: #7a5520; }
+.tag.unknown { color: var(--paid); border-color: #7a5520; }
+
+.toggle { display: flex; align-items: center; gap: 10px; min-height: var(--tap); cursor: pointer; }
+.toggle input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--accent); }
+.toggle span { font-size: 0.9rem; }
+
+.banner {
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  margin-bottom: 13px;
+  font-size: 0.85rem;
+  border: 1px solid;
+}
+.banner.good { background: #10241c; border-color: #1e6b4a; color: #a8e9cc; }
+.banner.warn { background: #2a2113; border-color: #7a5520; color: #f2d7a8; }
+.banner.info { background: #131b2e; border-color: #2b3a5e; color: #c3d2f5; }
+
+.empty { color: var(--text-dim); font-size: 0.88rem; text-align: center; padding: 26px 14px; }
+.spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: -2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.8rem; }
+.scroll-x { overflow-x: auto; }
+table.ledger { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+table.ledger th, table.ledger td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.ledger th { color: var(--text-dim); font-weight: 600; }
+
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>ALLAI</h1>
+  <span class="tagline">Your models. Your memory. Your money.</span>
+</header>
+
+<main>
+
+  <!-- ============================ CHAT ============================ -->
+  <section class="screen" id="screen-chat">
+    <div class="chat-bar">
+      <select id="model-select" aria-label="Model"></select>
+      <button type="button" class="btn secondary small" id="new-chat-btn">New</button>
+    </div>
+    <div class="chat-bar" style="border-bottom:1px solid var(--border);flex-wrap:wrap;gap:5px" id="model-facts"></div>
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <textarea id="composer-input" rows="1" placeholder="Ask anything…" aria-label="Message"></textarea>
+      <button type="button" class="btn" id="send-btn">Send</button>
+      <button type="button" class="btn danger" id="stop-btn" hidden>Stop</button>
+    </div>
+  </section>
+
+  <!-- ============================ MODELS ============================ -->
+  <section class="screen" id="screen-models">
+    <h2>Models</h2>
+    <p class="hint">
+      Everything below is read from the provider itself, not written into ALLAI by hand.
+      Where a provider does not publish something, ALLAI says so instead of guessing.
+    </p>
+    <div id="models-list"></div>
+  </section>
+
+  <!-- ============================ CHARACTERS ============================ -->
+  <section class="screen" id="screen-characters">
+    <h2>Characters</h2>
+    <div class="banner info">Not built yet — this is Milestone 3.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Create AI characters with a name, personality, background, speaking style, goals,
+        their relationship to you, their own memory and an optional picture. Characters will be
+        saved as plain data, so they can be exported, shared and edited without touching any code.
+      </p>
+      <p>
+        The groundwork is already here: characters have their own place in storage, and the chat
+        screen already sends a system prompt, which is what a character is made of.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ COUNCIL ============================ -->
+  <section class="screen" id="screen-council">
+    <h2>Council</h2>
+    <div class="banner info">Not built yet — this is Milestone 4.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Put one question to several different models, then have a final model read all their
+        answers and write a combined one.
+      </p>
+      <p>
+        An honesty rule is built into the plan: if only one model is configured, Council will say
+        plainly that it is running with one model. It will never fake a panel by asking a single
+        model to play several parts.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ LAB ============================ -->
+  <section class="screen" id="screen-lab">
+    <h2>Model Lab</h2>
+    <div class="banner info">Not built yet — this is Milestone 5.</div>
+    <div class="card">
+      <h3>What this will do</h3>
+      <p>
+        Send the same prompt to several models side by side and compare what comes back, with the
+        time each one took, the tokens each one used and the cost where it is known.
+      </p>
+      <p>
+        It will show you the results and let you judge. It will not tell you which model is
+        "best", because that depends on what you are doing.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================ MEMORY ============================ -->
+  <section class="screen" id="screen-memory">
+    <h2>Memory</h2>
+    <p class="hint">
+      Permanent memory: short facts sent with every message, on every model. ALLAI never
+      writes anything here on its own — only what you type below.
+    </p>
+
+    <label class="toggle" style="margin-bottom:12px">
+      <input type="checkbox" id="memory-enabled" checked>
+      <span>Use memory in conversations</span>
+    </label>
+
+    <label class="field">
+      <span>Add a memory</span>
+      <textarea id="memory-input" rows="2" placeholder="e.g. I am new to programming — explain things simply."></textarea>
+    </label>
+    <button type="button" class="btn" id="memory-add-btn" style="margin-bottom:16px">Save memory</button>
+
+    <div id="memory-list"></div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>The three kinds of memory</h3>
+      <p><strong>Permanent memory</strong> — the list above. Always sent. Only you put things in it.</p>
+      <p><strong>Conversation history</strong> — the messages in a chat. Saved on this phone, sent with that chat only.</p>
+      <p><strong>Temporary context</strong> — things that exist only while ALLAI is open, and are gone when you close it.</p>
+    </div>
+  </section>
+
+  <!-- ============================ SETTINGS ============================ -->
+  <section class="screen" id="screen-settings">
+    <h2>Settings</h2>
+
+    <h3 style="margin:18px 0 8px">Money</h3>
+    <div id="budget-summary"></div>
+    <div class="card">
+      <label class="toggle"><input type="checkbox" id="protect-balance" checked><span><strong>Protect my balance</strong> — refuse anything that could cost money</span></label>
+      <label class="toggle"><input type="checkbox" id="allow-paid"><span>Allow paid requests (you are still asked each time)</span></label>
+      <label class="field" style="margin-top:12px">
+        <span>Maximum ALLAI may ever spend, in dollars</span>
+        <input type="number" id="budget-usd" min="0" step="0.01" value="0">
+      </label>
+      <button type="button" class="btn secondary small" id="clear-ledger-btn">Clear usage history</button>
+    </div>
+
+    <h3 style="margin:18px 0 8px">Providers</h3>
+    <p class="hint">
+      Keys are kept in this browser on this phone and are never sent anywhere except to the
+      provider they belong to. ALLAI only ever shows you the first and last few characters.
+    </p>
+    <div id="provider-settings"></div>
+
+    <h3 style="margin:18px 0 8px">Personality</h3>
+    <label class="field">
+      <span>System prompt — the standing instruction sent at the top of every conversation</span>
+      <textarea id="system-prompt" rows="4" placeholder="Leave empty to send no instruction at all."></textarea>
+    </label>
+
+    <h3 style="margin:18px 0 8px">Your data</h3>
+    <div class="card">
+      <p>
+        Everything ALLAI knows is stored in this browser on this phone. There is no ALLAI server
+        and no account. Your messages go straight from here to the provider you picked.
+      </p>
+      <button type="button" class="btn danger" id="delete-all-btn">Delete everything</button>
+    </div>
+
+    <p class="hint" style="margin-top:22px">ALLAI v0.1 — Milestone 1</p>
+  </section>
+
+</main>
+
+<nav class="app-nav" id="app-nav"></nav>
+
+<script>
+(function () {
+'use strict';
+/* ALLAI bundle — generated by build/build-allai.js. Do not edit this file;
+   edit the files in allai/src/ and run the build again. */
+var __defs = {};
+var __cache = {};
+function __def(id, fn) { __defs[id] = fn; }
+function __req(id) {
+  if (Object.prototype.hasOwnProperty.call(__cache, id)) return __cache[id];
+  var exports = {};
+  __cache[id] = exports;
+  var fn = __defs[id];
+  if (!fn) throw new Error('ALLAI bundle is missing module: ' + id);
+  fn(exports, __req);
+  return exports;
+}
+
+__def("src/core/providers/registry.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — provider registry
+ *
+ * A "provider" is one company or service that will answer a chat request.
+ * A "model" is one specific AI that a provider hosts.
+ *
+ * Everything ALLAI knows about talking to the outside world goes through the
+ * shapes described here. Adding a new provider later means writing one object
+ * and calling registerProvider() — no other file has to change. That is the
+ * whole point of this file.
+ *
+ * ---------------------------------------------------------------------------
+ * Provider shape
+ * ---------------------------------------------------------------------------
+ *   id            stable short string, e.g. "pollinations"
+ *   name          what a human sees, e.g. "Pollinations"
+ *   docsUrl       where the facts below came from, so they can be re-checked
+ *   auth          { required, scheme, keyLabel, howToGet }
+ *                 scheme is "none" or "bearer". required:false means ALLAI can
+ *                 call it with no key at all.
+ *   restrictions  Plain-English summary of what the PROVIDER documents that it
+ *                 restricts. Never write "uncensored" here. Write what is
+ *                 actually documented, or say that it is not documented.
+ *   hosting       "remote" or "local"
+ *   listModels()  -> Model[]  (from the static catalog; may be refreshed live)
+ *   fetchModels(cfg) -> Promise<Model[]> | null
+ *                 Optional. Live model list when the provider offers one.
+ *   send(req)     -> Promise<Reply>   The actual request. See below.
+ *
+ * ---------------------------------------------------------------------------
+ * Model shape
+ * ---------------------------------------------------------------------------
+ *   id            provider-specific model id sent over the wire
+ *   providerId    which provider hosts it
+ *   name          human label
+ *   free          true only when the provider documents it as costing $0
+ *   pricing       { inPerMTok, outPerMTok } in US dollars, or null if unknown.
+ *                 null means UNKNOWN. It does not mean free.
+ *   contextTokens number, or null when the provider does not publish it
+ *   vision        true when the provider documents image input
+ *   tools         true when the provider documents tool/function calling
+ *   hosting       "remote" or "local"
+ *   notes         anything a person should know before picking it
+ *
+ * ---------------------------------------------------------------------------
+ * send(req) request shape
+ * ---------------------------------------------------------------------------
+ *   { model, messages, signal, onDelta, config, params }
+ *     model    a Model object
+ *     messages [{ role: "system"|"user"|"assistant", content: string }]
+ *     signal   an AbortSignal so the user can press Stop
+ *     onDelta  fn(textChunk) called as text streams in; may be omitted
+ *     config   { apiKey?, baseUrl? } for this provider, from settings
+ *     params   { temperature?, maxTokens? }
+ *
+ * send() resolves to a Reply:
+ *   { text, usage: {promptTokens, completionTokens}|null, latencyMs, modelReported }
+ *
+ * send() rejects with a ProviderError (below) so the UI can say something
+ * useful instead of "something went wrong".
+ * ======================================================================== */
+
+const ERROR_KIND = Object.freeze({
+  AUTH: 'auth',              // key missing, wrong, or rejected
+  RATE_LIMIT: 'rate_limit',  // too many requests, or free quota spent
+  QUOTA: 'quota',            // account/credit exhausted
+  UNAVAILABLE: 'unavailable',// provider down, 5xx, or unreachable
+  MODEL: 'model',            // this model refused/failed/does not exist
+  NETWORK: 'network',        // phone offline, DNS, CORS, connection dropped
+  ABORTED: 'aborted',        // the user pressed Stop
+  BLOCKED_BY_BUDGET: 'blocked_by_budget', // ALLAI refused to spend money
+  UNKNOWN: 'unknown',
+});
+
+class ProviderError extends Error {
+  constructor(kind, message, { providerId = null, status = null, retryable = false } = {}) {
+    super(message);
+    this.name = 'ProviderError';
+    this.kind = kind;
+    this.providerId = providerId;
+    this.status = status;
+    this.retryable = retryable;
+  }
+}
+
+/** Turns an HTTP status into the closest error kind. */
+function kindFromStatus(status) {
+  if (status === 401 || status === 403) return ERROR_KIND.AUTH;
+  if (status === 402) return ERROR_KIND.QUOTA;
+  if (status === 429) return ERROR_KIND.RATE_LIMIT;
+  if (status === 404) return ERROR_KIND.MODEL;
+  if (status >= 500) return ERROR_KIND.UNAVAILABLE;
+  return ERROR_KIND.UNKNOWN;
+}
+
+const providers = new Map();
+
+function registerProvider(provider) {
+  if (!provider || !provider.id) throw new Error('registerProvider: provider needs an id');
+  if (typeof provider.send !== 'function') throw new Error(`provider ${provider.id} has no send()`);
+  providers.set(provider.id, provider);
+  return provider;
+}
+
+function getProvider(id) {
+  return providers.get(id) || null;
+}
+
+function listProviders() {
+  return [...providers.values()];
+}
+
+/**
+ * Every model ALLAI currently knows about, across every registered provider.
+ * `enabledIds` limits it to providers the user has actually turned on, so the
+ * model list never advertises something that cannot be called.
+ */
+function listModels({ enabledProviderIds = null } = {}) {
+  const out = [];
+  for (const p of providers.values()) {
+    if (enabledProviderIds && !enabledProviderIds.includes(p.id)) continue;
+    for (const m of p.listModels()) out.push(m);
+  }
+  return out;
+}
+
+function findModel(providerId, modelId) {
+  const p = providers.get(providerId);
+  if (!p) return null;
+  return p.listModels().find(m => m.id === modelId) || null;
+}
+
+/**
+ * True when this provider can be called right now.
+ * A provider that needs a key and has no key is NOT ready, and ALLAI must not
+ * pretend otherwise — that is how fake fallbacks happen.
+ */
+function isProviderReady(provider, config = {}) {
+  if (!provider) return false;
+  if (!provider.auth?.required) return true;
+  return Boolean(config[provider.id]?.apiKey);
+}
+
+Object.assign(__exports, { ERROR_KIND, ProviderError, kindFromStatus, registerProvider, getProvider, listProviders, listModels, findModel, isProviderReady });
+
+});
+
+__def("src/core/providers/openai-compat.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — OpenAI-compatible transport
+ *
+ * Most AI providers copied OpenAI's request format, so one piece of code can
+ * talk to a lot of them: Pollinations, OpenRouter, Venice, and anything else
+ * that offers a /chat/completions endpoint. Providers that do NOT follow it
+ * (Anthropic's own API, for example) get their own adapter file instead of
+ * being forced through this one.
+ *
+ * This file does transport only. It does not decide whether a request is
+ * allowed to cost money — budget.js does that, before we ever get here.
+ * ======================================================================== */
+
+const { ERROR_KIND, ProviderError, kindFromStatus } = __req("src/core/providers/registry.js");
+
+/** Pulls a human-readable reason out of whatever shape the error body is in. */
+function describeErrorBody(body) {
+  if (!body) return '';
+  if (typeof body === 'string') return body.slice(0, 400);
+  const err = body.error ?? body;
+  if (typeof err === 'string') return err.slice(0, 400);
+  return String(err?.message || err?.detail || JSON.stringify(err)).slice(0, 400);
+}
+
+/**
+ * One chat request against an OpenAI-shaped endpoint.
+ *
+ * Streaming is used when onDelta is supplied AND the caller has not opted out,
+ * because streaming is what makes Stop work and what makes the app feel alive
+ * on a slow phone connection. If the endpoint refuses to stream we fall back
+ * to reading the whole body — we never silently drop the request.
+ */
+async function sendOpenAICompatible({
+  endpoint,
+  apiKey = null,
+  model,
+  messages,
+  signal,
+  onDelta = null,
+  params = {},
+  extraHeaders = {},
+  providerId = null,
+  stream = true,
+}) {
+  const headers = { 'Content-Type': 'application/json', ...extraHeaders };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+  const wantsStream = Boolean(onDelta) && stream;
+  const body = {
+    model: model.id,
+    messages: messages.map(m => ({ role: m.role, content: m.content })),
+    stream: wantsStream,
+  };
+  if (params.temperature != null) body.temperature = Number(params.temperature);
+  if (params.maxTokens != null) body.max_tokens = Number(params.maxTokens);
+
+  const startedAt = Date.now();
+  let response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new ProviderError(ERROR_KIND.ABORTED, 'Stopped.', { providerId });
+    }
+    // In a browser this is also what a blocked CORS request looks like, which
+    // is why the message names both possibilities instead of guessing.
+    throw new ProviderError(
+      ERROR_KIND.NETWORK,
+      `Could not reach ${endpoint}. The phone may be offline, or this endpoint may not allow browser requests.`,
+      { providerId, retryable: true },
+    );
+  }
+
+  if (!response.ok) {
+    let parsed = null;
+    try { parsed = await response.json(); } catch { try { parsed = await response.text(); } catch { /* body unreadable */ } }
+    const detail = describeErrorBody(parsed);
+    throw new ProviderError(
+      kindFromStatus(response.status),
+      detail ? `${response.status}: ${detail}` : `${response.status} from ${providerId || endpoint}`,
+      { providerId, status: response.status, retryable: response.status === 429 || response.status >= 500 },
+    );
+  }
+
+  if (wantsStream && response.body) {
+    return await readStream(response, { onDelta, startedAt, providerId });
+  }
+  return await readWhole(response, { onDelta, startedAt, providerId });
+}
+
+async function readWhole(response, { onDelta, startedAt, providerId }) {
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ProviderError(ERROR_KIND.UNKNOWN, 'The provider sent a reply ALLAI could not read.', { providerId });
+  }
+  const choice = data?.choices?.[0];
+  const text = choice?.message?.content ?? '';
+  if (onDelta && text) onDelta(text);
+  return {
+    text,
+    usage: normalizeUsage(data?.usage),
+    latencyMs: Date.now() - startedAt,
+    modelReported: data?.model ?? null,
+    finishReason: choice?.finish_reason ?? null,
+  };
+}
+
+/**
+ * Reads server-sent events. The wire format is a series of `data: {...}` lines
+ * ending in `data: [DONE]`. Chunks can be split across network reads, so we
+ * keep a buffer and only consume whole lines.
+ */
+async function readStream(response, { onDelta, startedAt, providerId }) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let text = '';
+  let usage = null;
+  let modelReported = null;
+  let finishReason = null;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let newlineAt;
+      while ((newlineAt = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newlineAt).trim();
+        buffer = buffer.slice(newlineAt + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '[DONE]') { buffer = ''; break; }
+        let parsed;
+        try { parsed = JSON.parse(payload); } catch { continue; }
+
+        if (parsed.model) modelReported = parsed.model;
+        if (parsed.usage) usage = normalizeUsage(parsed.usage);
+        const choice = parsed.choices?.[0];
+        if (choice?.finish_reason) finishReason = choice.finish_reason;
+        const piece = choice?.delta?.content;
+        if (piece) { text += piece; if (onDelta) onDelta(piece); }
+      }
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      // Partial text is still worth keeping — the user asked to stop, not to
+      // throw away what already arrived.
+      return { text, usage, latencyMs: Date.now() - startedAt, modelReported, finishReason: 'aborted', aborted: true };
+    }
+    throw new ProviderError(ERROR_KIND.NETWORK, 'The connection dropped while the reply was arriving.', { providerId, retryable: true });
+  }
+
+  return { text, usage, latencyMs: Date.now() - startedAt, modelReported, finishReason };
+}
+
+function normalizeUsage(usage) {
+  if (!usage) return null;
+  const promptTokens = usage.prompt_tokens ?? usage.promptTokens ?? null;
+  const completionTokens = usage.completion_tokens ?? usage.completionTokens ?? null;
+  if (promptTokens == null && completionTokens == null) return null;
+  return { promptTokens, completionTokens };
+}
+
+Object.assign(__exports, { sendOpenAICompatible });
+
+});
+
+__def("src/core/providers/custom.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — Custom OpenAI-compatible endpoint
+ *
+ * The escape hatch. Any service that speaks OpenAI's /chat/completions format
+ * can be used here by pasting its address and, if it needs one, a key. That
+ * includes a local model server running on the phone or on the same wifi
+ * later on — nothing here assumes the endpoint is on the internet.
+ *
+ * Models are whatever Cam types in, because ALLAI genuinely does not know
+ * what lives behind an address it has never seen. Rather than guess at a
+ * context window or a price, unknown fields stay null and the UI shows
+ * "not published".
+ * ======================================================================== */
+
+const { registerProvider } = __req("src/core/providers/registry.js");
+const { sendOpenAICompatible } = __req("src/core/providers/openai-compat.js");
+
+/** Filled from settings: [{ id, name, contextTokens, vision, tools, free, local }] */
+let userModels = [];
+
+function setCustomModels(models) {
+  userModels = (Array.isArray(models) ? models : []).map(m => ({
+    id: String(m.id || '').trim(),
+    providerId: 'custom',
+    name: m.name || m.id,
+    // A custom endpoint is only marked free when Cam says so. ALLAI cannot
+    // know, and assuming free is how a surprise bill happens.
+    free: m.free === true,
+    pricing: m.free === true ? { inPerMTok: 0, outPerMTok: 0 } : null,
+    contextTokens: Number.isFinite(Number(m.contextTokens)) ? Number(m.contextTokens) : null,
+    vision: m.vision === true,
+    tools: m.tools === true,
+    hosting: m.local === true ? 'local' : 'remote',
+    moderated: null,
+    notes: m.notes || 'A custom endpoint you configured. ALLAI reports only what you told it.',
+  })).filter(m => m.id);
+}
+
+const custom = registerProvider({
+  id: 'custom',
+  name: 'Custom endpoint',
+  docsUrl: null,
+  hosting: 'remote',
+  enabledByDefault: false,
+  auth: {
+    required: false,
+    scheme: 'bearer',
+    keyLabel: 'API key (leave blank if the endpoint does not need one)',
+    howToGet: 'Whatever the service you are connecting to tells you.',
+  },
+  restrictions:
+    'Unknown to ALLAI. This is an address you supplied, so its rules are whatever the service ' +
+    'behind it says they are.',
+  costNote:
+    'Unknown to ALLAI. A model here counts as paid unless you tick the free box yourself, ' +
+    'so the budget guard errs on the side of not spending your money.',
+
+  listModels() {
+    return userModels.map(m => ({ ...m }));
+  },
+
+  send({ model, messages, signal, onDelta, params, config }) {
+    if (!config?.baseUrl) {
+      return Promise.reject(new Error('No address set for the custom endpoint. Add one in Settings.'));
+    }
+    return sendOpenAICompatible({
+      endpoint: config.baseUrl,
+      apiKey: config.apiKey || null,
+      model, messages, signal, onDelta, params,
+      providerId: 'custom',
+    });
+  },
+});
+
+Object.assign(__exports, { setCustomModels, custom });
+
+});
+
+__def("src/core/budget.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — cost guard
+ *
+ * Cam has about five dollars. This file exists so that no request can ever
+ * quietly spend any of it.
+ *
+ * The rule the whole file enforces: a request that could cost money is
+ * refused unless three separate things are true — paid spending is switched
+ * on, "Protect my balance" is switched off, and there is budget left. The
+ * defaults are set so that a brand new install can only ever use free models.
+ *
+ * Two deliberate strictnesses:
+ *   1. A model with UNKNOWN pricing counts as PAID. Unknown is not free.
+ *   2. Having an API key is never treated as permission to spend. A key means
+ *      "I can reach this provider", not "help yourself".
+ * ======================================================================== */
+
+const DEFAULT_BUDGET_SETTINGS = Object.freeze({
+  allowPaid: false,       // paid spending is OFF until Cam turns it on
+  protectBalance: true,   // the big red switch: refuse all paid requests
+  budgetUsd: 0,           // maximum ALLAI may ever spend, in dollars
+  spentUsd: 0,            // what the ledger says has been spent so far
+  warnAboveUsd: 0.01,     // ask again before any single request over this
+});
+
+const DECISION = Object.freeze({
+  ALLOWED_FREE: 'allowed_free',
+  NEEDS_APPROVAL: 'needs_approval',
+  BLOCKED_PROTECTED: 'blocked_protected',
+  BLOCKED_PAID_OFF: 'blocked_paid_off',
+  BLOCKED_NO_BUDGET: 'blocked_no_budget',
+  BLOCKED_UNKNOWN_PRICE: 'blocked_unknown_price',
+});
+
+/**
+ * A rough token count. Four characters per token is the usual rule of thumb
+ * for English text; it is an ESTIMATE and the UI must say so. Real counts come
+ * back from the provider after the fact and are what the ledger records.
+ */
+function estimateTokens(text) {
+  return Math.ceil(String(text || '').length / 4);
+}
+
+function estimateRequestTokens(messages, expectedReplyTokens = 600) {
+  const promptTokens = messages.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  return { promptTokens, completionTokens: expectedReplyTokens };
+}
+
+/** Dollars for a given token count at a given price. Returns null if unknown. */
+function estimateCostUsd(model, { promptTokens = 0, completionTokens = 0 } = {}) {
+  if (!model?.pricing) return null;
+  const { inPerMTok, outPerMTok } = model.pricing;
+  if (!Number.isFinite(inPerMTok) || !Number.isFinite(outPerMTok)) return null;
+  return (promptTokens / 1e6) * inPerMTok + (completionTokens / 1e6) * outPerMTok;
+}
+
+function isFreeModel(model) {
+  // Free only when the provider published a price and that price is zero on
+  // both sides. A missing price is unknown, and unknown is never free. The
+  // `free` flag alone is not enough either — a flag that disagrees with the
+  // published price loses to the price.
+  if (!model?.pricing) return false;
+  return model.pricing.inPerMTok === 0 && model.pricing.outPerMTok === 0;
+}
+
+/**
+ * The gate. Every request goes through this before a single byte is sent.
+ *
+ * Returns { decision, allowed, requiresApproval, estimatedUsd, remainingUsd, message }
+ * `message` is written to be shown to a person as-is.
+ */
+function authorize({ model, messages = [], settings = DEFAULT_BUDGET_SETTINGS, approved = false }) {
+  const s = { ...DEFAULT_BUDGET_SETTINGS, ...settings };
+  const remainingUsd = Math.max(0, Number(s.budgetUsd || 0) - Number(s.spentUsd || 0));
+
+  if (isFreeModel(model)) {
+    return {
+      decision: DECISION.ALLOWED_FREE,
+      allowed: true,
+      requiresApproval: false,
+      estimatedUsd: 0,
+      remainingUsd,
+      message: 'Free model — this costs nothing.',
+    };
+  }
+
+  const tokens = estimateRequestTokens(messages);
+  const estimatedUsd = estimateCostUsd(model, tokens);
+
+  if (s.protectBalance) {
+    return {
+      decision: DECISION.BLOCKED_PROTECTED,
+      allowed: false,
+      requiresApproval: false,
+      estimatedUsd,
+      remainingUsd,
+      message:
+        '"Protect my balance" is on, so ALLAI will not send any request that could cost money. ' +
+        'Pick a free model, or turn the setting off in Settings.',
+    };
+  }
+
+  if (!s.allowPaid) {
+    return {
+      decision: DECISION.BLOCKED_PAID_OFF,
+      allowed: false,
+      requiresApproval: false,
+      estimatedUsd,
+      remainingUsd,
+      message: 'Paid requests are switched off. Turn them on in Settings if you want to use this model.',
+    };
+  }
+
+  if (estimatedUsd == null) {
+    return {
+      decision: DECISION.BLOCKED_UNKNOWN_PRICE,
+      allowed: false,
+      requiresApproval: false,
+      estimatedUsd: null,
+      remainingUsd,
+      message:
+        'ALLAI does not know what this model charges, so it will not send the request. ' +
+        'An unknown price is not a free price.',
+    };
+  }
+
+  if (estimatedUsd > remainingUsd) {
+    return {
+      decision: DECISION.BLOCKED_NO_BUDGET,
+      allowed: false,
+      requiresApproval: false,
+      estimatedUsd,
+      remainingUsd,
+      message:
+        `This request is estimated at ${formatUsd(estimatedUsd)} but only ${formatUsd(remainingUsd)} ` +
+        'of your budget is left. Raise the budget in Settings if you want to continue.',
+    };
+  }
+
+  if (!approved) {
+    return {
+      decision: DECISION.NEEDS_APPROVAL,
+      allowed: false,
+      requiresApproval: true,
+      estimatedUsd,
+      remainingUsd,
+      message:
+        `This is a paid model. Estimated cost: about ${formatUsd(estimatedUsd)} ` +
+        `(a rough guess, not a quote). You have ${formatUsd(remainingUsd)} of budget left.`,
+    };
+  }
+
+  return {
+    decision: DECISION.NEEDS_APPROVAL,
+    allowed: true,
+    requiresApproval: false,
+    estimatedUsd,
+    remainingUsd,
+    message: `Approved. Estimated cost about ${formatUsd(estimatedUsd)}.`,
+  };
+}
+
+function formatUsd(value) {
+  if (value == null || !Number.isFinite(value)) return 'an unknown amount';
+  if (value === 0) return '$0.00';
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+/**
+ * One line in the usage ledger. Written after every request, free or paid, so
+ * that "what have I actually used" is answerable from real data rather than
+ * from memory.
+ */
+function makeLedgerEntry({ model, usage, latencyMs, estimatedUsd, outcome }) {
+  const actualUsd = usage ? estimateCostUsd(model, {
+    promptTokens: usage.promptTokens || 0,
+    completionTokens: usage.completionTokens || 0,
+  }) : null;
+  return {
+    ts: Date.now(),
+    providerId: model?.providerId ?? null,
+    modelId: model?.id ?? null,
+    free: isFreeModel(model),
+    promptTokens: usage?.promptTokens ?? null,
+    completionTokens: usage?.completionTokens ?? null,
+    latencyMs: latencyMs ?? null,
+    estimatedUsd: estimatedUsd ?? null,
+    // null means "the provider did not tell us", not "zero".
+    actualUsd,
+    outcome: outcome || 'ok',
+  };
+}
+
+Object.assign(__exports, { DEFAULT_BUDGET_SETTINGS, DECISION, estimateTokens, estimateRequestTokens, estimateCostUsd, isFreeModel, authorize, formatUsd, makeLedgerEntry });
+
+});
+
+__def("src/core/storage.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — storage
+ *
+ * Everything ALLAI knows lives in IndexedDB, which is a database built into
+ * the phone's browser. Nothing is uploaded anywhere. Clearing the browser's
+ * site data for ALLAI deletes all of it, which is also how "delete everything"
+ * is implemented.
+ *
+ * The stores are kept separate on purpose, because the spec draws a hard line
+ * between kinds of memory and that line should exist in the data too:
+ *
+ *   settings       one row per setting. Includes provider keys.
+ *   conversations  chat threads and their messages. History, not memory.
+ *   memories       permanent, user-controlled facts. Survives conversations.
+ *   characters     AI personalities, stored as data rather than code.
+ *   ledger         one row per request made, for the budget screen.
+ *
+ * "Temporary context" — the third memory kind — deliberately has no store.
+ * It lives in memory for the length of a session and is gone when the tab
+ * closes. That is what makes it temporary.
+ * ======================================================================== */
+
+const DB_NAME = 'allai';
+const DB_VERSION = 1;
+
+const STORES = Object.freeze({
+  SETTINGS: 'settings',
+  CONVERSATIONS: 'conversations',
+  MEMORIES: 'memories',
+  CHARACTERS: 'characters',
+  LEDGER: 'ledger',
+});
+
+let dbPromise = null;
+
+function openDatabase() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('This browser has no IndexedDB, so ALLAI cannot save anything.'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORES.SETTINGS)) db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
+      if (!db.objectStoreNames.contains(STORES.CONVERSATIONS)) {
+        const store = db.createObjectStore(STORES.CONVERSATIONS, { keyPath: 'id' });
+        store.createIndex('updatedAt', 'updatedAt');
+      }
+      if (!db.objectStoreNames.contains(STORES.MEMORIES)) {
+        const store = db.createObjectStore(STORES.MEMORIES, { keyPath: 'id' });
+        store.createIndex('createdAt', 'createdAt');
+      }
+      if (!db.objectStoreNames.contains(STORES.CHARACTERS)) db.createObjectStore(STORES.CHARACTERS, { keyPath: 'id' });
+      if (!db.objectStoreNames.contains(STORES.LEDGER)) {
+        const store = db.createObjectStore(STORES.LEDGER, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('ts', 'ts');
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('Could not open ALLAI storage.'));
+  });
+  return dbPromise;
+}
+
+function run(storeName, mode, work) {
+  return openDatabase().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, mode);
+    const store = tx.objectStore(storeName);
+    let result;
+    try { result = work(store); } catch (err) { reject(err); return; }
+    tx.oncomplete = () => resolve(result && result.__req ? result.__req.result : result);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  }));
+}
+
+const wrap = (req) => ({ __req: req });
+
+const put = (storeName, value) => run(storeName, 'readwrite', s => wrap(s.put(value)));
+const remove = (storeName, key) => run(storeName, 'readwrite', s => wrap(s.delete(key)));
+const clearStore = (storeName) => run(storeName, 'readwrite', s => wrap(s.clear()));
+const getOne = (storeName, key) => run(storeName, 'readonly', s => wrap(s.get(key)));
+const getAll = (storeName) => run(storeName, 'readonly', s => wrap(s.getAll()));
+
+/* --- settings -------------------------------------------------------------
+ * Provider API keys live here. Two things ALLAI must never do with them:
+ * print one into a log, or show one in full on screen. maskKey() is the only
+ * approved way to display a key.
+ */
+async function getSetting(key, fallback = null) {
+  const row = await getOne(STORES.SETTINGS, key);
+  return row === undefined || row === null ? fallback : row.value;
+}
+
+async function setSetting(key, value) {
+  await put(STORES.SETTINGS, { key, value });
+  return value;
+}
+
+async function getAllSettings() {
+  const rows = await getAll(STORES.SETTINGS);
+  return Object.fromEntries((rows || []).map(r => [r.key, r.value]));
+}
+
+/** Shows enough of a key to recognise it, never enough to use it. */
+function maskKey(key) {
+  const k = String(key || '');
+  if (!k) return '(not set)';
+  if (k.length <= 8) return '••••';
+  return `${k.slice(0, 4)}••••••${k.slice(-4)}`;
+}
+
+/** Wipes everything. Used by the "delete all my data" button in Settings. */
+async function deleteEverything() {
+  for (const name of Object.values(STORES)) await clearStore(name);
+}
+
+Object.assign(__exports, { STORES, openDatabase, put, remove, clearStore, getOne, getAll, getSetting, setSetting, getAllSettings, maskKey, deleteEverything });
+
+});
+
+__def("src/core/chat.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — request orchestration
+ *
+ * One way in for every AI request the app makes, now and later. Chat uses it;
+ * Council, Model Lab and any future agent will use the same function. That is
+ * what keeps the cost guard impossible to bypass — there is no second path.
+ *
+ * Order of events, every time:
+ *   1. ask the budget guard
+ *   2. stop here if the answer is no
+ *   3. send the request
+ *   4. write what actually happened to the ledger
+ * ======================================================================== */
+
+const { ERROR_KIND, ProviderError, getProvider, isProviderReady } = __req("src/core/providers/registry.js");
+const { authorize, makeLedgerEntry, isFreeModel } = __req("src/core/budget.js");
+const { put, STORES } = __req("src/core/storage.js");
+
+/**
+ * Sends one request to one model.
+ *
+ * @returns {Promise<{text, usage, latencyMs, modelReported, ledgerEntry, gate}>}
+ * @throws  {ProviderError} including kind BLOCKED_BY_BUDGET when the guard says no
+ */
+async function sendChat({
+  model,
+  messages,
+  providerConfig = {},
+  budgetSettings,
+  approved = false,
+  signal = null,
+  onDelta = null,
+  params = {},
+  recordToLedger = true,
+}) {
+  if (!model) throw new ProviderError(ERROR_KIND.MODEL, 'No model was chosen.');
+  const provider = getProvider(model.providerId);
+  if (!provider) {
+    throw new ProviderError(ERROR_KIND.MODEL, `ALLAI does not know a provider called "${model.providerId}".`);
+  }
+
+  const config = providerConfig[provider.id] || {};
+  if (!isProviderReady(provider, providerConfig)) {
+    throw new ProviderError(
+      ERROR_KIND.AUTH,
+      `${provider.name} needs an API key before it can be used. Add one in Settings.`,
+      { providerId: provider.id },
+    );
+  }
+
+  const gate = authorize({ model, messages, settings: budgetSettings, approved });
+  if (!gate.allowed) {
+    throw new ProviderError(ERROR_KIND.BLOCKED_BY_BUDGET, gate.message, { providerId: provider.id });
+  }
+
+  let reply;
+  try {
+    reply = await provider.send({ model, messages, signal, onDelta, params, config });
+  } catch (err) {
+    if (recordToLedger) {
+      const outcome = err instanceof ProviderError ? err.kind : 'error';
+      await safeRecord(makeLedgerEntry({ model, usage: null, latencyMs: null, estimatedUsd: gate.estimatedUsd, outcome }));
+    }
+    throw err;
+  }
+
+  const ledgerEntry = makeLedgerEntry({
+    model,
+    usage: reply.usage,
+    latencyMs: reply.latencyMs,
+    estimatedUsd: gate.estimatedUsd,
+    outcome: reply.aborted ? 'aborted' : 'ok',
+  });
+  if (recordToLedger) await safeRecord(ledgerEntry);
+
+  return { ...reply, ledgerEntry, gate };
+}
+
+/** A ledger write must never take down a reply that already arrived. */
+async function safeRecord(entry) {
+  try { await put(STORES.LEDGER, entry); } catch { /* storage unavailable; the reply still stands */ }
+}
+
+/**
+ * Tries each model in turn until one answers.
+ *
+ * The honesty rule from the spec lives here: a model is only in the chain if
+ * its provider is actually configured and ready. ALLAI never claims a fallback
+ * it does not have, and it never quietly moves a request from a free model to
+ * a paid one — `freeOnly` defaults to true so that cannot happen by accident.
+ *
+ * @returns {Promise<{reply, model, attempts}>}
+ */
+async function sendWithFallback({
+  models,
+  providerConfig = {},
+  budgetSettings,
+  freeOnly = true,
+  onAttempt = null,
+  ...rest
+}) {
+  const chain = models.filter(m => {
+    const provider = getProvider(m.providerId);
+    if (!isProviderReady(provider, providerConfig)) return false;
+    if (freeOnly && !isFreeModel(m)) return false;
+    return true;
+  });
+
+  if (chain.length === 0) {
+    throw new ProviderError(
+      ERROR_KIND.UNAVAILABLE,
+      'No usable model is configured. ALLAI will not invent a fallback it does not have — ' +
+      'add a provider in Settings, or pick a model that is ready.',
+    );
+  }
+
+  const attempts = [];
+  for (let i = 0; i < chain.length; i += 1) {
+    const model = chain[i];
+    if (onAttempt) onAttempt({ model, index: i, total: chain.length });
+    try {
+      const reply = await sendChat({ model, providerConfig, budgetSettings, ...rest });
+      return { reply, model, attempts };
+    } catch (err) {
+      attempts.push({ model, error: err });
+      // The user pressing Stop, or the guard refusing to spend, are decisions.
+      // Working around a decision by trying the next model would be wrong.
+      if (err.kind === ERROR_KIND.ABORTED || err.kind === ERROR_KIND.BLOCKED_BY_BUDGET) throw err;
+      if (i === chain.length - 1) throw err;
+    }
+  }
+  throw new ProviderError(ERROR_KIND.UNAVAILABLE, 'Every configured model failed.');
+}
+
+/**
+ * Builds the message list sent to the model: system prompt, then permanent
+ * memories, then the conversation so far.
+ *
+ * Memory is opt-in and visible. Nothing gets added here that the user has not
+ * seen on the Memory screen.
+ */
+function buildMessages({ systemPrompt = '', memories = [], history = [], memoryEnabled = true }) {
+  const messages = [];
+  const systemParts = [];
+  if (systemPrompt.trim()) systemParts.push(systemPrompt.trim());
+
+  if (memoryEnabled && memories.length > 0) {
+    const lines = memories.filter(m => m.enabled !== false).map(m => `- ${m.text}`);
+    if (lines.length > 0) {
+      systemParts.push(`Things the user has asked you to remember:\n${lines.join('\n')}`);
+    }
+  }
+  if (systemParts.length > 0) messages.push({ role: 'system', content: systemParts.join('\n\n') });
+  for (const m of history) {
+    if (m.role === 'user' || m.role === 'assistant') messages.push({ role: m.role, content: m.content });
+  }
+  return messages;
+}
+
+/** Plain-English wording for each failure, so the UI never says "error". */
+function explainError(err) {
+  if (!(err instanceof ProviderError)) {
+    return err?.message || 'Something went wrong and ALLAI does not know what.';
+  }
+  switch (err.kind) {
+    case ERROR_KIND.AUTH: return `That provider would not accept the key. ${err.message}`;
+    case ERROR_KIND.RATE_LIMIT: return 'Too many requests too quickly, or the free allowance is used up for now. Wait a moment and try again.';
+    case ERROR_KIND.QUOTA: return 'That account is out of credit. Nothing was charged to you by ALLAI.';
+    case ERROR_KIND.UNAVAILABLE: return `The provider is having trouble right now. ${err.message}`;
+    case ERROR_KIND.MODEL: return `That model did not work. ${err.message}`;
+    case ERROR_KIND.NETWORK: return err.message;
+    case ERROR_KIND.ABORTED: return 'Stopped.';
+    case ERROR_KIND.BLOCKED_BY_BUDGET: return err.message;
+    default: return err.message;
+  }
+}
+
+Object.assign(__exports, { sendChat, sendWithFallback, buildMessages, explainError });
+
+});
+
+__def("src/core/providers/pollinations.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — Pollinations provider
+ *
+ * Why this one is first: it answers with no API key at all. That is what lets
+ * ALLAI be genuinely usable on day one without anybody signing up for
+ * anything or spending a cent.
+ *
+ * Everything below was checked against the live service on 2026-09-19:
+ *   GET  https://text.pollinations.ai/models  -> anonymous tier lists exactly
+ *        one model, "openai-fast" (GPT-OSS 20B), vision:false, tools:true
+ *   POST https://text.pollinations.ai/openai  -> OpenAI-shaped, answered with
+ *        no Authorization header, response reported "user_tier":"anonymous"
+ *   The endpoint returns access-control-allow-origin: *, which is what lets a
+ *   plain HTML file on a phone call it directly with no server in between.
+ * ======================================================================== */
+
+const { registerProvider } = __req("src/core/providers/registry.js");
+const { sendOpenAICompatible } = __req("src/core/providers/openai-compat.js");
+
+const ENDPOINT = 'https://text.pollinations.ai/openai';
+const MODELS_URL = 'https://text.pollinations.ai/models';
+
+const CATALOG = [
+  {
+    id: 'openai-fast',
+    providerId: 'pollinations',
+    name: 'GPT-OSS 20B (openai-fast)',
+    free: true,
+    pricing: { inPerMTok: 0, outPerMTok: 0 },
+    // Pollinations does not publish a context limit for the anonymous tier,
+    // so ALLAI says "not published" rather than inventing a number.
+    contextTokens: null,
+    vision: false,
+    tools: true,
+    hosting: 'remote',
+    notes: 'Free, no account, no API key. The only model the anonymous tier offers.',
+  },
+];
+
+const pollinations = registerProvider({
+  id: 'pollinations',
+  name: 'Pollinations',
+  docsUrl: 'https://pollinations.ai',
+  hosting: 'remote',
+  enabledByDefault: true,
+  auth: {
+    required: false,
+    scheme: 'none',
+    keyLabel: null,
+    howToGet: 'Nothing to get. This provider answers without an account.',
+  },
+  restrictions:
+    'Pollinations publishes an acceptable-use policy, and the model it serves (GPT-OSS 20B) ' +
+    'carries its own safety training from the people who built it. ALLAI adds no moderation ' +
+    'on top of that. Exactly what it will and will not discuss is not documented anywhere ' +
+    'ALLAI can read, so treat it as unknown until you test it yourself.',
+  costNote: 'Free. No billing exists on the anonymous tier, so this provider cannot spend money.',
+
+  listModels() {
+    return CATALOG.map(m => ({ ...m }));
+  },
+
+  /** Live list, so a model added or retired upstream shows up without a release. */
+  async fetchModels() {
+    const res = await fetch(MODELS_URL);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data)) return null;
+    return data.map(m => ({
+      id: m.name,
+      providerId: 'pollinations',
+      name: m.description || m.name,
+      free: m.tier === 'anonymous',
+      pricing: m.tier === 'anonymous' ? { inPerMTok: 0, outPerMTok: 0 } : null,
+      contextTokens: null,
+      vision: Boolean(m.vision),
+      tools: Boolean(m.tools),
+      hosting: 'remote',
+      notes: m.tier === 'anonymous'
+        ? 'Free, no API key needed.'
+        : `Requires a Pollinations key (tier: ${m.tier}).`,
+    }));
+  },
+
+  send({ model, messages, signal, onDelta, params }) {
+    return sendOpenAICompatible({
+      endpoint: ENDPOINT,
+      apiKey: null,
+      model, messages, signal, onDelta, params,
+      providerId: 'pollinations',
+    });
+  },
+});
+
+Object.assign(__exports, { pollinations });
+
+});
+
+__def("src/core/providers/openrouter.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — OpenRouter provider
+ *
+ * OpenRouter is a front door to hundreds of models from many companies. It
+ * needs an API key, so it stays OFF until Cam chooses to add one.
+ *
+ * Deliberate decision: the model catalog here is EMPTY. OpenRouter publishes
+ * every model's real price, real context length and real capabilities at
+ * https://openrouter.ai/api/v1/models, readable without a key. ALLAI fetches
+ * that instead of shipping a hardcoded list, because a hardcoded list is a
+ * list of numbers that quietly go stale and become lies about what something
+ * costs. If the fetch fails, ALLAI shows no models rather than guesses.
+ * ======================================================================== */
+
+const { registerProvider } = __req("src/core/providers/registry.js");
+const { sendOpenAICompatible } = __req("src/core/providers/openai-compat.js");
+
+const ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const MODELS_URL = 'https://openrouter.ai/api/v1/models';
+
+let cached = null;
+
+/** OpenRouter prices in dollars per token; people think in dollars per million. */
+function perMillion(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n * 1_000_000 : null;
+}
+
+const openrouter = registerProvider({
+  id: 'openrouter',
+  name: 'OpenRouter',
+  docsUrl: 'https://openrouter.ai/docs',
+  hosting: 'remote',
+  enabledByDefault: false,
+  auth: {
+    required: true,
+    scheme: 'bearer',
+    keyLabel: 'OpenRouter API key',
+    howToGet: 'Make a free account at openrouter.ai, then Keys -> Create Key. Models whose name ends in ":free" cost $0.',
+  },
+  restrictions:
+    'Varies per model, because OpenRouter is a middleman for many different companies. ' +
+    'Each model in the list below reports whether the company serving it applies its own ' +
+    'moderation layer — ALLAI shows that flag as OpenRouter publishes it. The underlying ' +
+    'model still has whatever training its makers gave it.',
+  costNote:
+    'Mixed. Some models are free; most are paid. ALLAI reads the real price per model from ' +
+    'OpenRouter and will not send a paid request without your say-so.',
+
+  listModels() {
+    return cached ? cached.map(m => ({ ...m })) : [];
+  },
+
+  async fetchModels() {
+    const res = await fetch(MODELS_URL);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data?.data)) return null;
+
+    cached = data.data.map(m => {
+      const inPerMTok = perMillion(m.pricing?.prompt);
+      const outPerMTok = perMillion(m.pricing?.completion);
+      const free = inPerMTok === 0 && outPerMTok === 0;
+      const moderated = m.top_provider?.is_moderated;
+      return {
+        id: m.id,
+        providerId: 'openrouter',
+        name: m.name || m.id,
+        free,
+        pricing: (inPerMTok == null || outPerMTok == null) ? null : { inPerMTok, outPerMTok },
+        contextTokens: m.context_length ?? m.top_provider?.context_length ?? null,
+        vision: Array.isArray(m.architecture?.input_modalities)
+          ? m.architecture.input_modalities.includes('image')
+          : false,
+        tools: Array.isArray(m.supported_parameters) ? m.supported_parameters.includes('tools') : false,
+        hosting: 'remote',
+        moderated: typeof moderated === 'boolean' ? moderated : null,
+        notes: typeof moderated === 'boolean'
+          ? (moderated
+              ? 'The company serving this model applies its own moderation layer.'
+              : 'OpenRouter reports no extra moderation layer from the serving company.')
+          : 'OpenRouter does not report a moderation flag for this model.',
+      };
+    });
+    return cached.map(m => ({ ...m }));
+  },
+
+  send({ model, messages, signal, onDelta, params, config }) {
+    return sendOpenAICompatible({
+      endpoint: config?.baseUrl || ENDPOINT,
+      apiKey: config?.apiKey || null,
+      model, messages, signal, onDelta, params,
+      providerId: 'openrouter',
+    });
+  },
+});
+
+Object.assign(__exports, { openrouter });
+
+});
+
+__def("src/core/providers/venice.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — Venice provider
+ *
+ * Venice is OpenAI-shaped and needs a key, so it stays OFF until Cam adds one.
+ * As with OpenRouter, the catalog is fetched rather than hardcoded: Venice
+ * publishes pricing, context length and per-model capabilities at
+ * https://api.venice.ai/api/v1/models, readable without a key.
+ *
+ * Unit note: the numbers under model_spec.pricing.*.usd are the figures Venice
+ * publishes per million tokens. ALLAI passes them through and labels them as
+ * Venice's own published prices rather than converting or estimating.
+ * ======================================================================== */
+
+const { registerProvider } = __req("src/core/providers/registry.js");
+const { sendOpenAICompatible } = __req("src/core/providers/openai-compat.js");
+
+const ENDPOINT = 'https://api.venice.ai/api/v1/chat/completions';
+const MODELS_URL = 'https://api.venice.ai/api/v1/models';
+
+let cached = null;
+
+const venice = registerProvider({
+  id: 'venice',
+  name: 'Venice',
+  docsUrl: 'https://docs.venice.ai',
+  hosting: 'remote',
+  enabledByDefault: false,
+  auth: {
+    required: true,
+    scheme: 'bearer',
+    keyLabel: 'Venice API key',
+    howToGet: 'Create an account at venice.ai, then generate an API key in your account settings.',
+  },
+  restrictions:
+    'Venice markets itself on privacy and on not retaining conversations, and it offers models ' +
+    'with fewer refusals than most hosted services. That is their claim about their own service, ' +
+    'not something ALLAI can verify, and every model still has whatever training its makers gave ' +
+    'it. Check their current terms before relying on any of it.',
+  costNote: 'Paid. Venice publishes a price for each model; ALLAI reads it and will not spend without your say-so.',
+
+  listModels() {
+    return cached ? cached.map(m => ({ ...m })) : [];
+  },
+
+  async fetchModels() {
+    const res = await fetch(MODELS_URL);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data?.data)) return null;
+
+    cached = data.data.map(m => {
+      const spec = m.model_spec || {};
+      const caps = spec.capabilities || {};
+      const inUsd = spec.pricing?.input?.usd;
+      const outUsd = spec.pricing?.output?.usd;
+      return {
+        id: m.id,
+        providerId: 'venice',
+        name: m.id,
+        free: inUsd === 0 && outUsd === 0,
+        pricing: (typeof inUsd === 'number' && typeof outUsd === 'number')
+          ? { inPerMTok: inUsd, outPerMTok: outUsd }
+          : null,
+        contextTokens: spec.availableContextTokens ?? m.context_length ?? null,
+        vision: Boolean(caps.supportsVision),
+        tools: Boolean(caps.supportsFunctionCalling),
+        hosting: 'remote',
+        moderated: null,
+        notes: spec.description ? String(spec.description).slice(0, 200) : '',
+      };
+    });
+    return cached.map(m => ({ ...m }));
+  },
+
+  send({ model, messages, signal, onDelta, params, config }) {
+    return sendOpenAICompatible({
+      endpoint: config?.baseUrl || ENDPOINT,
+      apiKey: config?.apiKey || null,
+      model, messages, signal, onDelta, params,
+      providerId: 'venice',
+    });
+  },
+});
+
+Object.assign(__exports, { venice });
+
+});
+
+__def("src/ui/app.js", function (__exports, __req) {
+/* ===========================================================================
+ * ALLAI — application shell
+ *
+ * Wires the screens to the core. Deliberately plain JavaScript: no framework,
+ * no build step, nothing to install. The whole app is one page and a handful
+ * of files, which is what makes it work when it is copied onto a phone.
+ * ======================================================================== */
+
+const { listProviders, listModels, getProvider, isProviderReady } = __req("src/core/providers/registry.js");
+__req("src/core/providers/pollinations.js");
+__req("src/core/providers/openrouter.js");
+__req("src/core/providers/venice.js");
+const { setCustomModels } = __req("src/core/providers/custom.js");
+const { sendChat, buildMessages, explainError } = __req("src/core/chat.js");
+const { DEFAULT_BUDGET_SETTINGS, isFreeModel, formatUsd, estimateCostUsd, authorize } = __req("src/core/budget.js");
+const {
+  STORES, getAllSettings, setSetting, getAll, put, remove, clearStore,
+  maskKey, deleteEverything,
+} = __req("src/core/storage.js");
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+/* --- application state ----------------------------------------------------
+ * Held in one object so it is obvious what the app knows. Anything that must
+ * survive closing the tab is written to storage; anything here that is not
+ * written is, by definition, temporary context.
+ */
+const state = {
+  settings: {},
+  providerConfig: {},
+  budget: { ...DEFAULT_BUDGET_SETTINGS },
+  models: [],
+  selectedModelKey: null,
+  conversation: { id: null, title: 'New conversation', messages: [] },
+  memories: [],
+  memoryEnabled: true,
+  systemPrompt: '',
+  sending: false,
+  controller: null,
+};
+
+const modelKey = (m) => `${m.providerId}::${m.id}`;
+const findModelByKey = (key) => state.models.find(m => modelKey(m) === key) || null;
+
+/* ========================================================================
+ * Boot
+ * ===================================================================== */
+async function boot() {
+  try {
+    await loadPersisted();
+  } catch (err) {
+    // A phone in private mode can refuse storage entirely. The app should
+    // still run; it just will not remember anything between visits.
+    showChatNotice(`ALLAI could not open its storage, so nothing will be saved this session. (${err.message})`);
+  }
+  refreshModels();
+  buildNav();
+  renderAll();
+  attachEvents();
+  // Live catalogs come after first paint so a slow network never blocks the UI.
+  refreshRemoteCatalogs();
+}
+
+async function loadPersisted() {
+  const settings = await getAllSettings();
+  state.settings = settings;
+  state.providerConfig = settings.providerConfig || {};
+  state.budget = { ...DEFAULT_BUDGET_SETTINGS, ...(settings.budget || {}) };
+  state.selectedModelKey = settings.selectedModelKey || null;
+  state.memoryEnabled = settings.memoryEnabled !== false;
+  state.systemPrompt = settings.systemPrompt || '';
+  setCustomModels(settings.customModels || []);
+  state.memories = (await getAll(STORES.MEMORIES)) || [];
+}
+
+function enabledProviderIds() {
+  return listProviders()
+    .filter(p => {
+      const cfg = state.providerConfig[p.id] || {};
+      if (cfg.enabled === false) return false;
+      if (cfg.enabled === true) return true;
+      return p.enabledByDefault === true;
+    })
+    .map(p => p.id);
+}
+
+function refreshModels() {
+  state.models = listModels({ enabledProviderIds: enabledProviderIds() });
+  if (!findModelByKey(state.selectedModelKey)) {
+    const firstFree = state.models.find(isFreeModel);
+    state.selectedModelKey = firstFree ? modelKey(firstFree) : (state.models[0] ? modelKey(state.models[0]) : null);
+  }
+}
+
+/** Pulls live model lists from providers that publish one. Failures are quiet
+ *  on purpose: a provider being unreachable is not an error worth a popup. */
+async function refreshRemoteCatalogs() {
+  const ids = enabledProviderIds();
+  await Promise.all(listProviders().map(async (p) => {
+    if (!ids.includes(p.id) || typeof p.fetchModels !== 'function') return;
+    if (p.auth?.required && !isProviderReady(p, state.providerConfig)) return;
+    try { await p.fetchModels(state.providerConfig[p.id] || {}); } catch { /* offline or blocked */ }
+  }));
+  refreshModels();
+  renderModelPicker();
+  renderModelsScreen();
+}
+
+/* ========================================================================
+ * Navigation
+ * ===================================================================== */
+const SCREENS = [
+  { id: 'chat', label: 'Chat', icon: '💬' },
+  { id: 'models', label: 'Models', icon: '🧠' },
+  { id: 'characters', label: 'Characters', icon: '🎭' },
+  { id: 'council', label: 'Council', icon: '⚖️' },
+  { id: 'lab', label: 'Lab', icon: '🔬' },
+  { id: 'memory', label: 'Memory', icon: '📌' },
+  { id: 'settings', label: 'Settings', icon: '⚙️' },
+];
+
+function buildNav() {
+  const nav = $('#app-nav');
+  nav.innerHTML = SCREENS.map(s =>
+    `<button type="button" data-screen="${s.id}"><span class="ico">${s.icon}</span>${s.label}</button>`
+  ).join('');
+  nav.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-screen]');
+    if (btn) showScreen(btn.dataset.screen);
+  });
+}
+
+function showScreen(id) {
+  $$('.screen').forEach(el => el.classList.toggle('active', el.id === `screen-${id}`));
+  $$('#app-nav button').forEach(b => {
+    if (b.dataset.screen === id) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
+  if (id === 'models') renderModelsScreen();
+  if (id === 'memory') renderMemoryScreen();
+  if (id === 'settings') renderSettingsScreen();
+}
+
+function renderAll() {
+  renderModelPicker();
+  renderMessages();
+  renderModelsScreen();
+  renderMemoryScreen();
+  renderSettingsScreen();
+  showScreen('chat');
+}
+
+/* ========================================================================
+ * Model picker + model facts
+ * ===================================================================== */
+function describeContext(m) {
+  return m.contextTokens ? `${Math.round(m.contextTokens / 1000)}k context` : 'context not published';
+}
+
+function priceTag(m) {
+  if (isFreeModel(m)) return '<span class="tag free">FREE</span>';
+  if (!m.pricing) return '<span class="tag unknown">PRICE UNKNOWN</span>';
+  return `<span class="tag paid">$${m.pricing.inPerMTok.toFixed(2)}/$${m.pricing.outPerMTok.toFixed(2)} per M</span>`;
+}
+
+function renderModelPicker() {
+  const select = $('#model-select');
+  if (!select) return;
+  if (state.models.length === 0) {
+    select.innerHTML = '<option value="">No models available</option>';
+    return;
+  }
+  const byProvider = new Map();
+  for (const m of state.models) {
+    if (!byProvider.has(m.providerId)) byProvider.set(m.providerId, []);
+    byProvider.get(m.providerId).push(m);
+  }
+  select.innerHTML = [...byProvider.entries()].map(([pid, models]) => {
+    const provider = getProvider(pid);
+    const options = models.map(m => {
+      const badge = isFreeModel(m) ? 'free' : (m.pricing ? 'paid' : 'price unknown');
+      return `<option value="${escapeAttr(modelKey(m))}">${escapeHtml(m.name)} — ${badge}</option>`;
+    }).join('');
+    return `<optgroup label="${escapeAttr(provider?.name || pid)}">${options}</optgroup>`;
+  }).join('');
+  if (state.selectedModelKey) select.value = state.selectedModelKey;
+  renderModelFacts();
+}
+
+function renderModelFacts() {
+  const el = $('#model-facts');
+  if (!el) return;
+  const m = findModelByKey(state.selectedModelKey);
+  if (!m) { el.innerHTML = '<span class="tag">no model selected</span>'; return; }
+  const provider = getProvider(m.providerId);
+  const bits = [
+    priceTag(m),
+    `<span class="tag">${escapeHtml(provider?.name || m.providerId)}</span>`,
+    `<span class="tag">${describeContext(m)}</span>`,
+    `<span class="tag">${m.vision ? 'vision' : 'text only'}</span>`,
+    `<span class="tag">${m.tools ? 'tools' : 'no tools'}</span>`,
+    `<span class="tag">${m.hosting}</span>`,
+  ];
+  if (m.moderated === true) bits.push('<span class="tag paid">provider moderation on</span>');
+  if (m.moderated === false) bits.push('<span class="tag free">no extra moderation layer</span>');
+  el.innerHTML = bits.join(' ');
+}
+
+function renderModelsScreen() {
+  const list = $('#models-list');
+  if (!list) return;
+  if (state.models.length === 0) {
+    list.innerHTML = '<p class="empty">No providers are switched on. Open Settings to enable one.</p>';
+    return;
+  }
+  const byProvider = new Map();
+  for (const m of state.models) {
+    if (!byProvider.has(m.providerId)) byProvider.set(m.providerId, []);
+    byProvider.get(m.providerId).push(m);
+  }
+  list.innerHTML = [...byProvider.entries()].map(([pid, models]) => {
+    const p = getProvider(pid);
+    const ready = isProviderReady(p, state.providerConfig);
+    const shown = models.slice(0, 40);
+    const rows = shown.map(m => `
+      <div class="card">
+        <h3>${escapeHtml(m.name)}</h3>
+        <p class="mono">${escapeHtml(m.id)}</p>
+        <div class="row tight">
+          ${priceTag(m)}
+          <span class="tag">${describeContext(m)}</span>
+          <span class="tag">${m.vision ? 'vision' : 'text only'}</span>
+          <span class="tag">${m.tools ? 'tools' : 'no tools'}</span>
+          <span class="tag">${m.hosting}</span>
+          ${m.moderated === false ? '<span class="tag free">no extra moderation layer</span>' : ''}
+          ${m.moderated === true ? '<span class="tag paid">provider moderation on</span>' : ''}
+        </div>
+        ${m.notes ? `<p style="margin-top:8px">${escapeHtml(m.notes)}</p>` : ''}
+      </div>`).join('');
+    const more = models.length > shown.length
+      ? `<p class="empty">${models.length - shown.length} more models from this provider are available and can be chosen in Chat.</p>` : '';
+    return `
+      <div class="card" style="background:var(--surface-2)">
+        <h3>${escapeHtml(p?.name || pid)} ${ready ? '' : '<span class="tag paid">needs a key</span>'}</h3>
+        <p><strong>Restrictions:</strong> ${escapeHtml(p?.restrictions || 'Not documented.')}</p>
+        <p><strong>Cost:</strong> ${escapeHtml(p?.costNote || 'Unknown.')}</p>
+      </div>
+      ${rows}${more}`;
+  }).join('');
+}
+
+/* ========================================================================
+ * Chat
+ * ===================================================================== */
+function renderMessages() {
+  const box = $('#messages');
+  if (!box) return;
+  if (state.conversation.messages.length === 0) {
+    box.innerHTML = `<div class="msg system">New conversation. Whatever you type goes straight from this phone to the provider you picked — ALLAI has no server of its own.</div>`;
+    return;
+  }
+  box.innerHTML = state.conversation.messages.map(renderMessage).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderMessage(m) {
+  const cls = m.role === 'user' ? 'user' : m.error ? 'assistant error' : m.role === 'system' ? 'system' : 'assistant';
+  const meta = m.meta ? `<span class="meta">${escapeHtml(m.meta)}</span>` : '';
+  return `<div class="msg ${cls}">${escapeHtml(m.content)}${meta}</div>`;
+}
+
+function showChatNotice(text) {
+  state.conversation.messages.push({ role: 'system', content: text });
+  renderMessages();
+}
+
+async function handleSend() {
+  if (state.sending) return;
+  const input = $('#composer-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const model = findModelByKey(state.selectedModelKey);
+  if (!model) { showChatNotice('Pick a model first.'); return; }
+
+  // Budget check happens here too, so the estimate can be shown BEFORE
+  // anything is sent. sendChat() checks again; this one is for the human.
+  const history = [...state.conversation.messages.filter(m => m.role === 'user' || m.role === 'assistant'),
+                   { role: 'user', content: text }];
+  const messages = buildMessages({
+    systemPrompt: state.systemPrompt,
+    memories: state.memories,
+    history,
+    memoryEnabled: state.memoryEnabled,
+  });
+
+  let approved = false;
+  const gate = authorize({ model, messages, settings: state.budget });
+  if (gate.requiresApproval) {
+    approved = window.confirm(`${gate.message}\n\nSend it?`);
+    if (!approved) return;
+  } else if (!gate.allowed) {
+    showChatNotice(gate.message);
+    return;
+  }
+
+  input.value = '';
+  input.style.height = '';
+  state.conversation.messages.push({ role: 'user', content: text });
+
+  const assistantMsg = { role: 'assistant', content: '', meta: 'thinking…' };
+  state.conversation.messages.push(assistantMsg);
+  renderMessages();
+  setSending(true);
+
+  state.controller = new AbortController();
+  try {
+    const reply = await sendChat({
+      model,
+      messages,
+      providerConfig: state.providerConfig,
+      budgetSettings: state.budget,
+      approved,
+      signal: state.controller.signal,
+      onDelta: (chunk) => {
+        assistantMsg.content += chunk;
+        assistantMsg.meta = '';
+        renderMessages();
+      },
+    });
+    assistantMsg.content = reply.text || assistantMsg.content;
+    assistantMsg.meta = describeReply(model, reply);
+    if (!assistantMsg.content) {
+      assistantMsg.content = '(The model sent an empty reply.)';
+    }
+  } catch (err) {
+    if (assistantMsg.content) {
+      // Partial text already arrived — keep it and note what happened.
+      assistantMsg.meta = explainError(err);
+    } else {
+      assistantMsg.error = true;
+      assistantMsg.content = explainError(err);
+      assistantMsg.meta = '';
+    }
+  } finally {
+    setSending(false);
+    state.controller = null;
+    renderMessages();
+    persistConversation();
+  }
+}
+
+function describeReply(model, reply) {
+  const parts = [];
+  parts.push(reply.modelReported || model.name);
+  if (reply.latencyMs != null) parts.push(`${(reply.latencyMs / 1000).toFixed(1)}s`);
+  if (reply.usage) {
+    parts.push(`${reply.usage.promptTokens ?? '?'} in / ${reply.usage.completionTokens ?? '?'} out tokens`);
+  } else {
+    parts.push('token count not reported');
+  }
+  if (isFreeModel(model)) {
+    parts.push('free');
+  } else {
+    const cost = reply.usage ? estimateCostUsd(model, reply.usage) : null;
+    parts.push(cost == null ? 'cost unknown' : `about ${formatUsd(cost)}`);
+  }
+  return parts.join(' · ');
+}
+
+function setSending(sending) {
+  state.sending = sending;
+  $('#send-btn').hidden = sending;
+  $('#stop-btn').hidden = !sending;
+  $('#composer-input').disabled = false;
+}
+
+async function persistConversation() {
+  if (!state.conversation.id) state.conversation.id = `conv-${Date.now()}`;
+  const plain = {
+    id: state.conversation.id,
+    title: state.conversation.title,
+    updatedAt: Date.now(),
+    messages: state.conversation.messages.map(m => ({ role: m.role, content: m.content, meta: m.meta || '', error: !!m.error })),
+  };
+  try { await put(STORES.CONVERSATIONS, plain); } catch { /* storage unavailable */ }
+}
+
+function newConversation() {
+  if (state.sending) return;
+  state.conversation = { id: null, title: 'New conversation', messages: [] };
+  renderMessages();
+}
+
+/* ========================================================================
+ * Memory
+ * ===================================================================== */
+function renderMemoryScreen() {
+  const list = $('#memory-list');
+  if (!list) return;
+  $('#memory-enabled').checked = state.memoryEnabled;
+  if (state.memories.length === 0) {
+    list.innerHTML = '<p class="empty">No memories saved. Anything you add here is sent with every message, until you remove it.</p>';
+    return;
+  }
+  list.innerHTML = state.memories.map(m => `
+    <div class="card" data-memory="${escapeAttr(m.id)}">
+      <p style="color:var(--text)">${escapeHtml(m.text)}</p>
+      <div class="row tight" style="margin-top:9px">
+        <label class="toggle"><input type="checkbox" data-mem-toggle ${m.enabled !== false ? 'checked' : ''}><span>Use this one</span></label>
+        <button type="button" class="btn secondary small" data-mem-edit>Edit</button>
+        <button type="button" class="btn danger small" data-mem-delete>Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function addMemory(text) {
+  const clean = text.trim();
+  if (!clean) return;
+  const memory = { id: `mem-${Date.now()}`, text: clean, enabled: true, createdAt: Date.now() };
+  state.memories.push(memory);
+  try { await put(STORES.MEMORIES, memory); } catch { /* storage unavailable */ }
+  renderMemoryScreen();
+}
+
+async function saveMemory(memory) {
+  try { await put(STORES.MEMORIES, memory); } catch { /* storage unavailable */ }
+}
+
+/* ========================================================================
+ * Settings
+ * ===================================================================== */
+function renderSettingsScreen() {
+  const host = $('#provider-settings');
+  if (!host) return;
+
+  host.innerHTML = listProviders().map(p => {
+    const cfg = state.providerConfig[p.id] || {};
+    const on = cfg.enabled === undefined ? p.enabledByDefault === true : cfg.enabled === true;
+    const keyField = p.auth?.required || p.id === 'custom' ? `
+      <label class="field">
+        <span>${escapeHtml(p.auth.keyLabel || 'API key')} — stored only on this phone. Currently: ${escapeHtml(maskKey(cfg.apiKey))}</span>
+        <input type="password" data-provider-key="${escapeAttr(p.id)}" placeholder="paste key here" autocomplete="off" value="">
+      </label>
+      <p>${escapeHtml(p.auth.howToGet || '')}</p>` : '<p>No key needed.</p>';
+    const urlField = p.id === 'custom' ? `
+      <label class="field">
+        <span>Endpoint address (must end in /chat/completions)</span>
+        <input type="text" data-provider-url="custom" value="${escapeAttr(cfg.baseUrl || '')}" placeholder="https://example.com/v1/chat/completions">
+      </label>` : '';
+    return `
+      <div class="card">
+        <h3>${escapeHtml(p.name)}</h3>
+        <label class="toggle"><input type="checkbox" data-provider-enable="${escapeAttr(p.id)}" ${on ? 'checked' : ''}><span>Use this provider</span></label>
+        <p style="margin-top:8px"><strong>Restrictions:</strong> ${escapeHtml(p.restrictions)}</p>
+        <p><strong>Cost:</strong> ${escapeHtml(p.costNote)}</p>
+        ${urlField}${keyField}
+      </div>`;
+  }).join('');
+
+  $('#protect-balance').checked = state.budget.protectBalance;
+  $('#allow-paid').checked = state.budget.allowPaid;
+  $('#budget-usd').value = state.budget.budgetUsd;
+  $('#system-prompt').value = state.systemPrompt;
+  renderBudgetSummary();
+}
+
+async function renderBudgetSummary() {
+  const el = $('#budget-summary');
+  if (!el) return;
+  let entries = [];
+  try { entries = (await getAll(STORES.LEDGER)) || []; } catch { /* storage unavailable */ }
+
+  const paidSpend = entries.reduce((sum, e) => sum + (e.actualUsd || 0), 0);
+  const remaining = Math.max(0, Number(state.budget.budgetUsd || 0) - paidSpend);
+  const freeCount = entries.filter(e => e.free).length;
+  const paidCount = entries.length - freeCount;
+
+  const banner = state.budget.protectBalance
+    ? `<div class="banner good">"Protect my balance" is ON. ALLAI will refuse any request that could cost money.</div>`
+    : state.budget.allowPaid
+      ? `<div class="banner warn">Paid requests are allowed, up to ${formatUsd(state.budget.budgetUsd)}. ${formatUsd(remaining)} left. You will still be asked before each one.</div>`
+      : `<div class="banner good">Paid requests are switched off.</div>`;
+
+  const recent = entries.slice(-12).reverse();
+  const table = recent.length === 0
+    ? '<p class="empty">Nothing has been sent yet.</p>'
+    : `<div class="scroll-x"><table class="ledger">
+        <tr><th>When</th><th>Model</th><th>Kind</th><th>Tokens</th><th>Cost</th><th>Result</th></tr>
+        ${recent.map(e => `<tr>
+          <td>${new Date(e.ts).toLocaleTimeString()}</td>
+          <td class="mono">${escapeHtml(String(e.modelId || '?'))}</td>
+          <td>${e.free ? '<span class="tag free">free</span>' : '<span class="tag paid">paid</span>'}</td>
+          <td>${e.promptTokens ?? '?'}/${e.completionTokens ?? '?'}</td>
+          <td>${e.free ? '$0.00' : (e.actualUsd == null ? 'unknown' : formatUsd(e.actualUsd))}</td>
+          <td>${escapeHtml(e.outcome || '')}</td>
+        </tr>`).join('')}
+      </table></div>`;
+
+  el.innerHTML = `${banner}
+    <p>${entries.length} requests so far — ${freeCount} free, ${paidCount} paid.
+    Money actually spent, as far as the providers reported it: <strong>${formatUsd(paidSpend)}</strong>.</p>
+    ${table}`;
+}
+
+async function saveBudget() {
+  state.budget = {
+    ...state.budget,
+    protectBalance: $('#protect-balance').checked,
+    allowPaid: $('#allow-paid').checked,
+    budgetUsd: Math.max(0, Number($('#budget-usd').value) || 0),
+  };
+  await setSetting('budget', state.budget);
+  renderBudgetSummary();
+}
+
+/* ========================================================================
+ * Events
+ * ===================================================================== */
+function attachEvents() {
+  $('#send-btn').addEventListener('click', handleSend);
+  $('#stop-btn').addEventListener('click', () => state.controller?.abort());
+  $('#new-chat-btn').addEventListener('click', newConversation);
+
+  const input = $('#composer-input');
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+  });
+  input.addEventListener('keydown', (e) => {
+    // Enter sends on a keyboard; on a phone the on-screen Enter key inserts a
+    // newline as people expect, so the Send button is the only way there.
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleSend(); }
+  });
+
+  $('#model-select').addEventListener('change', async (e) => {
+    state.selectedModelKey = e.target.value;
+    renderModelFacts();
+    await setSetting('selectedModelKey', state.selectedModelKey);
+  });
+
+  $('#memory-add-btn').addEventListener('click', async () => {
+    const field = $('#memory-input');
+    await addMemory(field.value);
+    field.value = '';
+  });
+
+  $('#memory-enabled').addEventListener('change', async (e) => {
+    state.memoryEnabled = e.target.checked;
+    await setSetting('memoryEnabled', state.memoryEnabled);
+  });
+
+  $('#memory-list').addEventListener('click', async (e) => {
+    const card = e.target.closest('[data-memory]');
+    if (!card) return;
+    const memory = state.memories.find(m => m.id === card.dataset.memory);
+    if (!memory) return;
+
+    if (e.target.matches('[data-mem-delete]')) {
+      if (!window.confirm('Delete this memory?')) return;
+      state.memories = state.memories.filter(m => m.id !== memory.id);
+      try { await remove(STORES.MEMORIES, memory.id); } catch { /* storage unavailable */ }
+      renderMemoryScreen();
+    } else if (e.target.matches('[data-mem-edit]')) {
+      const next = window.prompt('Edit this memory:', memory.text);
+      if (next == null) return;
+      memory.text = next.trim();
+      await saveMemory(memory);
+      renderMemoryScreen();
+    } else if (e.target.matches('[data-mem-toggle]')) {
+      memory.enabled = e.target.checked;
+      await saveMemory(memory);
+    }
+  });
+
+  $('#provider-settings').addEventListener('change', async (e) => {
+    const t = e.target;
+    if (t.dataset.providerEnable) {
+      setProviderConfig(t.dataset.providerEnable, { enabled: t.checked });
+      refreshModels();
+      renderModelPicker();
+      renderModelsScreen();
+      refreshRemoteCatalogs();
+    } else if (t.dataset.providerKey) {
+      const key = t.value.trim();
+      if (key) {
+        setProviderConfig(t.dataset.providerKey, { apiKey: key });
+        t.value = '';
+        renderSettingsScreen();
+        refreshRemoteCatalogs();
+      }
+    } else if (t.dataset.providerUrl) {
+      setProviderConfig(t.dataset.providerUrl, { baseUrl: t.value.trim() });
+    }
+    await setSetting('providerConfig', state.providerConfig);
+  });
+
+  ['#protect-balance', '#allow-paid', '#budget-usd'].forEach(sel => {
+    $(sel).addEventListener('change', saveBudget);
+  });
+
+  $('#system-prompt').addEventListener('change', async (e) => {
+    state.systemPrompt = e.target.value;
+    await setSetting('systemPrompt', state.systemPrompt);
+  });
+
+  $('#delete-all-btn').addEventListener('click', async () => {
+    if (!window.confirm('Delete every conversation, memory, character, API key and setting on this phone? This cannot be undone.')) return;
+    await deleteEverything();
+    window.location.reload();
+  });
+
+  $('#clear-ledger-btn').addEventListener('click', async () => {
+    if (!window.confirm('Clear the usage history? This does not refund or change anything at your providers.')) return;
+    await clearStore(STORES.LEDGER);
+    renderBudgetSummary();
+  });
+}
+
+function setProviderConfig(id, patch) {
+  state.providerConfig[id] = { ...(state.providerConfig[id] || {}), ...patch };
+}
+
+/* ========================================================================
+ * Escaping — everything that reaches the page goes through one of these.
+ * ===================================================================== */
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+const escapeAttr = escapeHtml;
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+}
+
+
+
+Object.assign(__exports, { state, boot, escapeHtml });
+
+});
+
+__req("src/ui/app.js");
+})();
+</script>
+</body>
+</html>
