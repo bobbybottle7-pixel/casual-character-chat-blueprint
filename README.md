@@ -14,6 +14,12 @@ Create your own AI characters, start role-playing chats, and keep full control o
 
 ---
 
+### 🧠 New: Qwen Local Chat (zero setup)
+
+Want to chat right away with no API key? Open **[`qwen-chat/index.html`](qwen-chat/index.html)** in Chrome, Edge or Brave. It runs the Qwen AI model directly on your device with WebGPU. The model downloads automatically on first open, and then you just type. See [`qwen-chat/README.md`](qwen-chat/README.md) for details.
+
+---
+
 ### ✨ Gallery
 
 | Character Selection | API Settings | Chat List Screen |

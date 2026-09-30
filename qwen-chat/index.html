@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Qwen Local Chat</title>
+<meta name="description" content="Private Qwen AI chat that runs entirely in your browser. No account, no API key, no server.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+:root {
+  --bg: #f6f7fb;
+  --panel: #ffffff;
+  --panel-2: #eef0f6;
+  --border: #e1e4ee;
+  --text: #171a24;
+  --muted: #6b7185;
+  --accent: #6d4aff;
+  --accent-2: #9b6bff;
+  --accent-soft: rgba(109, 74, 255, .10);
+  --user-bubble: linear-gradient(135deg, #6d4aff, #9b6bff);
+  --user-text: #ffffff;
+  --danger: #e5484d;
+  --ok: #30a46c;
+  --code-bg: #0f1117;
+  --shadow: 0 10px 30px rgba(20, 24, 40, .08);
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0c11; --panel: #12141b; --panel-2: #1a1d27; --border: #262a37;
+    --text: #e8eaf2; --muted: #8b91a7; --accent-soft: rgba(155, 107, 255, .14);
+    --shadow: 0 10px 30px rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0c11; --panel: #12141b; --panel-2: #1a1d27; --border: #262a37;
+  --text: #e8eaf2; --muted: #8b91a7; --accent-soft: rgba(155, 107, 255, .14);
+  --shadow: 0 10px 30px rgba(0, 0, 0, .4);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.6 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  overflow: hidden;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+.app { display: flex; height: 100dvh; }
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  width: 280px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; transition: transform .25s ease;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 16px 12px; font-weight: 700; font-size: 17px; }
+.logo {
+  width: 32px; height: 32px; border-radius: 10px; background: var(--user-bubble);
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+  box-shadow: 0 6px 16px rgba(109, 74, 255, .35);
+}
+.brand small { display: block; font-weight: 500; font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.new-chat {
+  margin: 4px 12px 10px; padding: 11px 14px; border-radius: 12px; background: var(--accent); color: #fff;
+  font-weight: 600; display: flex; align-items: center; gap: 8px; justify-content: center;
+  transition: filter .15s, transform .1s;
+}
+.new-chat:hover { filter: brightness(1.08); }
+.new-chat:active { transform: scale(.98); }
+.search { margin: 0 12px 8px; }
+.search input {
+  width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--panel-2); outline: none;
+}
+.search input:focus { border-color: var(--accent); }
+.conv-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+.conv {
+  display: flex; align-items: center; gap: 6px; padding: 9px 10px; border-radius: 10px; margin-bottom: 2px;
+  cursor: pointer; color: var(--muted); font-size: 14px;
+}
+.conv:hover { background: var(--panel-2); color: var(--text); }
+.conv.active { background: var(--accent-soft); color: var(--text); }
+.conv .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv .actions { display: none; gap: 2px; }
+.conv:hover .actions, .conv.active .actions { display: flex; }
+.icon-btn {
+  width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; color: var(--muted);
+}
+.icon-btn:hover { background: var(--panel-2); color: var(--text); }
+.icon-btn svg { width: 16px; height: 16px; }
+.sidebar-foot { border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 6px; }
+.sidebar-foot button {
+  flex: 1; padding: 9px; border-radius: 10px; background: var(--panel-2); font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.sidebar-foot button:hover { background: var(--accent-soft); }
+.group-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding: 10px 10px 4px; }
+
+/* ---------- main ---------- */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+.topbar {
+  height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(10px); z-index: 5;
+}
+.menu-btn { display: none; }
+.model-pill {
+  display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--border); font-weight: 600; font-size: 14px;
+  max-width: 100%; min-width: 0;
+}
+.model-pill:hover { border-color: var(--accent); }
+.model-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.dot.loading { background: #f5a524; animation: pulse 1.2s infinite; }
+.dot.ready { background: var(--ok); }
+.dot.error { background: var(--danger); }
+@keyframes pulse { 50% { opacity: .35; } }
+.topbar .spacer { flex: 1; }
+.stats { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.progress-wrap { height: 3px; background: transparent; position: absolute; top: 60px; left: 0; right: 0; z-index: 6; }
+.progress-bar { height: 100%; width: 0; background: var(--user-bubble); transition: width .3s ease; }
+.load-note {
+  position: absolute; top: 72px; left: 50%; transform: translateX(-50%); z-index: 6;
+  background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
+  padding: 8px 14px; border-radius: 12px; font-size: 13px; color: var(--muted);
+  max-width: calc(100% - 32px); text-align: center;
+}
+.load-note b { color: var(--text); }
+
+.messages { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+.thread { max-width: 820px; margin: 0 auto; padding: 24px 16px 40px; }
+.msg { display: flex; gap: 12px; margin: 18px 0; animation: rise .25s ease; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.msg.user { justify-content: flex-end; }
+.avatar {
+  width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center;
+  background: var(--user-bubble); color: #fff; font-weight: 800; font-size: 13px;
+}
+.bubble { min-width: 0; max-width: 100%; }
+.msg.user .bubble {
+  background: var(--user-bubble); color: var(--user-text); padding: 10px 16px; border-radius: 18px 18px 4px 18px;
+  max-width: 80%; white-space: pre-wrap; word-wrap: break-word; box-shadow: 0 6px 18px rgba(109, 74, 255, .22);
+}
+.msg.assistant .bubble { flex: 1; }
+.content { word-wrap: break-word; }
+.content > :first-child { margin-top: 0; }
+.content > :last-child { margin-bottom: 0; }
+.content p { margin: 0 0 .8em; }
+.content a { color: var(--accent-2); }
+.content ul, .content ol { padding-left: 1.4em; }
+.content blockquote { margin: .6em 0; padding: .2em 1em; border-left: 3px solid var(--accent); color: var(--muted); }
+.content table { border-collapse: collapse; margin: .8em 0; display: block; overflow-x: auto; }
+.content th, .content td { border: 1px solid var(--border); padding: 6px 10px; }
+.content :not(pre) > code {
+  background: var(--panel-2); padding: .12em .4em; border-radius: 6px; font: 13px 'JetBrains Mono', monospace;
+}
+.code-block { margin: .8em 0; border-radius: 12px; overflow: hidden; background: var(--code-bg); border: 1px solid #222634; }
+.code-head {
+  display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;
+  background: #171a24; color: #9aa0b4; font-size: 12px; font-family: 'JetBrains Mono', monospace;
+}
+.code-head button { color: #9aa0b4; font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+.code-head button:hover { background: #262a37; color: #fff; }
+.code-block pre { margin: 0; padding: 12px 14px; overflow-x: auto; }
+.code-block code { font: 13px/1.55 'JetBrains Mono', monospace; background: none !important; padding: 0 !important; }
+.cursor::after { content: '▍'; animation: blink 1s steps(2) infinite; color: var(--accent); margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.think {
+  margin-bottom: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
+  font-size: 13.5px;
+}
+.think summary {
+  cursor: pointer; padding: 8px 12px; color: var(--muted); list-style: none; display: flex; align-items: center; gap: 8px;
+  user-select: none;
+}
+.think summary::-webkit-details-marker { display: none; }
+.think summary::before { content: '›'; transition: transform .15s; display: inline-block; font-size: 16px; }
+.think[open] summary::before { transform: rotate(90deg); }
+.think .think-body { padding: 0 14px 10px; color: var(--muted); white-space: pre-wrap; max-height: 320px; overflow-y: auto; }
+
+.msg-tools { display: flex; gap: 2px; margin-top: 6px; opacity: 0; transition: opacity .15s; align-items: center; }
+.msg:hover .msg-tools, .msg:focus-within .msg-tools { opacity: 1; }
+.msg.user .msg-tools { justify-content: flex-end; }
+.msg-tools .meta { font-size: 11.5px; color: var(--muted); margin-left: 6px; }
+@media (hover: none) { .msg-tools { opacity: 1; } }
+.error-box {
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--text); padding: 10px 14px; border-radius: 12px; font-size: 14px;
+}
+
+/* ---------- empty state ---------- */
+.empty { max-width: 720px; margin: 0 auto; padding: 12vh 16px 24px; text-align: center; }
+.empty .logo { width: 56px; height: 56px; font-size: 24px; border-radius: 16px; margin: 0 auto 18px; }
+.empty h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -.02em; }
+.empty p { color: var(--muted); margin: 0 0 28px; }
+.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; text-align: left; }
+.chip {
+  padding: 14px 16px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border);
+  font-size: 14px; transition: border-color .15s, transform .15s;
+}
+.chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+.chip b { display: block; margin-bottom: 2px; }
+.chip span { color: var(--muted); font-size: 13px; }
+
+/* ---------- composer ---------- */
+.composer-wrap { padding: 0 16px calc(14px + env(safe-area-inset-bottom)); }
+.composer {
+  max-width: 820px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+  box-shadow: var(--shadow); padding: 10px 10px 8px 16px; transition: border-color .15s;
+}
+.composer:focus-within { border-color: var(--accent); }
+.composer textarea {
+  width: 100%; border: 0; outline: 0; resize: none; background: transparent; max-height: 220px; min-height: 26px;
+  padding: 4px 0; line-height: 1.5;
+}
+.composer-row { display: flex; align-items: center; gap: 6px; }
+.toggle {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.toggle.on { background: var(--accent-soft); color: var(--accent-2); border-color: transparent; }
+.send {
+  margin-left: auto; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: #fff;
+  display: grid; place-items: center; transition: filter .15s, opacity .15s;
+}
+.send:disabled { opacity: .4; cursor: default; }
+.send.stop { background: var(--text); color: var(--bg); }
+.send svg { width: 18px; height: 18px; }
+.hint { text-align: center; font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+
+/* ---------- drawer / modal ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, .45); z-index: 20; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.show { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--panel); z-index: 30;
+  transform: translateX(100%); transition: transform .25s ease; display: flex; flex-direction: column;
+  border-left: 1px solid var(--border);
+}
+.drawer.show { transform: none; }
+.drawer-head { display: flex; align-items: center; padding: 16px; border-bottom: 1px solid var(--border); }
+.drawer-head h2 { margin: 0; font-size: 17px; flex: 1; }
+.drawer-body { flex: 1; overflow-y: auto; padding: 16px; }
+.field { margin-bottom: 20px; }
+.field label { display: flex; justify-content: space-between; font-weight: 600; font-size: 13.5px; margin-bottom: 6px; }
+.field label em { font-style: normal; font-weight: 500; color: var(--muted); }
+.field .help { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.field select, .field textarea, .field input[type="text"] {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); outline: none;
+}
+.field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field textarea { min-height: 150px; resize: vertical; line-height: 1.5; font-size: 14px; }
+.field input[type="range"] { width: 100%; accent-color: var(--accent); }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.presets button { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border); font-size: 12.5px; }
+.presets button:hover, .presets button.on { border-color: var(--accent); color: var(--accent-2); }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { padding: 9px 14px; border-radius: 10px; background: var(--panel-2); font-weight: 500; font-size: 13.5px; border: 1px solid var(--border); }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+.btn.danger { color: var(--danger); }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.switch { position: relative; width: 42px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span { position: absolute; inset: 0; background: var(--border); border-radius: 999px; transition: background .2s; cursor: pointer; }
+.switch span::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .2s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::before { transform: translateX(18px); }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); z-index: 50;
+  background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13.5px;
+  opacity: 0; transition: all .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%); }
+
+.edit-area { width: 100%; min-height: 80px; border-radius: 12px; border: 1px solid var(--accent); background: var(--panel); padding: 10px; outline: none; resize: vertical; }
+.edit-btns { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+
+/* ---------- mobile ---------- */
+@media (max-width: 860px) {
+  .sidebar { position: fixed; z-index: 25; top: 0; bottom: 0; left: 0; transform: translateX(-100%); box-shadow: var(--shadow); }
+  .sidebar.show { transform: none; }
+  .menu-btn { display: grid; }
+  .stats { display: none; }
+  .msg.user .bubble { max-width: 90%; }
+  .avatar { display: none; }
+  .chips { grid-template-columns: 1fr; }
+  .empty { padding-top: 6vh; }
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div>Qwen Local Chat<small>runs on your device · private</small></div>
+    </div>
+    <button class="new-chat" id="newChat">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      New chat
+    </button>
+    <div class="search"><input id="search" type="text" placeholder="Search chats…"></div>
+    <div class="conv-list" id="convList"></div>
+    <div class="sidebar-foot">
+      <button id="openSettings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button id="themeBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        Theme
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Open chats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <button class="model-pill" id="modelPill" title="Change model">
+        <i class="dot loading" id="statusDot"></i><span id="modelName">Starting…</span>
+      </button>
+      <div class="spacer"></div>
+      <div class="stats" id="stats"></div>
+      <button class="icon-btn" id="exportBtn" title="Export chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      </button>
+    </header>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="load-note" id="loadNote" hidden></div>
+
+    <div class="messages" id="messages"><div class="thread" id="thread"></div></div>
+
+    <div class="composer-wrap">
+      <div class="composer">
+        <textarea id="input" rows="1" placeholder="Message Qwen…" autofocus></textarea>
+        <div class="composer-row">
+          <button class="toggle" id="thinkToggle" title="Let the model reason step by step before answering (slower, smarter)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2z"/></svg>
+            Think
+          </button>
+          <button class="send" id="sendBtn" aria-label="Send" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="hint">Runs 100% locally in your browser with WebGPU. Nothing you type leaves this device.</div>
+    </div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <h2>Settings</h2>
+    <button class="icon-btn" id="closeSettings" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <div class="field">
+      <label for="modelSelect">Model</label>
+      <select id="modelSelect"></select>
+      <div class="help" id="modelHelp">Downloaded once, then cached for instant offline use.</div>
+    </div>
+    <div class="field">
+      <label for="systemPrompt">System prompt <em>defines the AI's behavior</em></label>
+      <div class="presets" id="presets"></div>
+      <textarea id="systemPrompt"></textarea>
+      <div class="help">No filter is added on top of the model. Whatever you write here is sent as-is.</div>
+    </div>
+    <div class="field">
+      <label for="temp">Temperature <em id="tempVal"></em></label>
+      <input type="range" id="temp" min="0" max="1.5" step="0.05">
+      <div class="help">Lower = focused and predictable. Higher = creative and wild.</div>
+    </div>
+    <div class="field">
+      <label for="topP">Top P <em id="topPVal"></em></label>
+      <input type="range" id="topP" min="0.1" max="1" step="0.05">
+    </div>
+    <div class="field">
+      <label for="maxTokens">Max reply length <em id="maxTokensVal"></em></label>
+      <input type="range" id="maxTokens" min="128" max="2048" step="64">
+    </div>
+    <div class="field switch-row">
+      <div><b style="font-size:13.5px">Auto-scroll while generating</b></div>
+      <label class="switch"><input type="checkbox" id="autoScroll"><span></span></label>
+    </div>
+    <div class="field">
+      <label>Data</label>
+      <div class="row-btns">
+        <button class="btn" id="exportAll">Export all chats</button>
+        <button class="btn" id="importBtn">Import</button>
+        <button class="btn danger" id="clearAll">Delete all chats</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+    </div>
+    <div class="field">
+      <label>Model cache</label>
+      <div class="row-btns"><button class="btn" id="clearCache">Clear downloaded models</button></div>
+      <div class="help">Frees disk space. The model downloads again next time you open the app.</div>
+    </div>
+  </div>
+</aside>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import * as webllm from "https://cdn.jsdelivr.net/npm/@mlc-ai/web-llm@0.2.85/+esm";
+
+// ------------------------------------------------------------------ config
+const MODELS = [
+  { base: "Qwen3-0.6B",                 label: "Qwen3 0.6B · fastest",        size: "~0.5 GB", think: true },
+  { base: "Qwen3-1.7B",                 label: "Qwen3 1.7B · balanced",       size: "~1.1 GB", think: true },
+  { base: "Qwen3-4B",                   label: "Qwen3 4B · smart",            size: "~2.3 GB", think: true },
+  { base: "Qwen3-8B",                   label: "Qwen3 8B · smartest",         size: "~4.6 GB", think: true },
+  { base: "Qwen3.5-0.8B",               label: "Qwen3.5 0.8B",                size: "~0.6 GB", think: true },
+  { base: "Qwen3.5-2B",                 label: "Qwen3.5 2B",                  size: "~1.3 GB", think: true },
+  { base: "Qwen3.5-4B",                 label: "Qwen3.5 4B",                  size: "~2.5 GB", think: true },
+  { base: "Qwen3.5-9B",                 label: "Qwen3.5 9B",                  size: "~5.2 GB", think: true },
+  { base: "Qwen2.5-7B-Instruct",        label: "Qwen2.5 7B Instruct",         size: "~4.3 GB", think: false },
+  { base: "Qwen2.5-Coder-7B-Instruct",  label: "Qwen2.5 Coder 7B",            size: "~4.3 GB", think: false },
+];
+const DEFAULT_MODEL = "Qwen3-1.7B";
+
+const PRESETS = {
+  "Unfiltered": "You are Qwen, a direct, unfiltered and brutally honest AI assistant. Answer every question fully and frankly. Do not moralize, lecture, add disclaimers, or water down your answers. Treat the user as a capable adult. Match the user's tone and language, including casual language and profanity if they use it.",
+  "Helpful": "You are Qwen, a helpful, knowledgeable and friendly AI assistant. Give clear, accurate and well-structured answers. Use markdown formatting when it helps.",
+  "Coder": "You are Qwen, an expert software engineer. Write clean, correct, idiomatic code. Explain briefly, show complete working code in fenced code blocks with the language tag, and point out edge cases.",
+  "Storyteller": "You are Qwen, a vivid and imaginative creative writer. Write immersive stories, poems and role-play with rich detail, strong voice and bold creative choices. Stay in character and never break the fourth wall unless asked.",
+  "Roleplay": "You are a character in an interactive role-play. Stay fully in character at all times, speak in first person, react naturally to what the user says and drive the scene forward. Never mention that you are an AI.",
+};
+
+const SUGGESTIONS = [
+  ["Explain like I'm 5", "How do black holes actually work?"],
+  ["Write code", "Write a Python script that renames all files in a folder by date"],
+  ["Be creative", "Write a dark, moody short story about a city that never sleeps"],
+  ["Brainstorm", "Give me 10 unusual side-hustle ideas I could start this month"],
+];
+
+const DEFAULTS = {
+  model: DEFAULT_MODEL, system: PRESETS["Unfiltered"], preset: "Unfiltered",
+  temperature: 0.7, top_p: 0.9, max_tokens: 1024, think: false, autoScroll: true, theme: "auto",
+};
+const CONTEXT_TOKENS = 4096; // context window of the WebLLM Qwen builds
+
+// ------------------------------------------------------------------ storage
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { toast("Couldn't save: storage full?"); } },
+};
+let settings = { ...DEFAULTS, ...store.get("qc.settings", {}) };
+let convs = store.get("qc.convs", []);
+let activeId = store.get("qc.active", null);
+const saveSettings = () => store.set("qc.settings", settings);
+const saveConvs = () => { store.set("qc.convs", convs); store.set("qc.active", activeId); };
+
+// ------------------------------------------------------------------ dom
+const $ = (id) => document.getElementById(id);
+const els = {
+  thread: $("thread"), messages: $("messages"), input: $("input"), send: $("sendBtn"), convList: $("convList"),
+  dot: $("statusDot"), modelName: $("modelName"), progress: $("progressBar"), loadNote: $("loadNote"), stats: $("stats"),
+  think: $("thinkToggle"), sidebar: $("sidebar"), drawer: $("drawer"), scrim: $("scrim"),
+};
+const ICONS = {
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+};
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ------------------------------------------------------------------ markdown
+const renderer = new marked.Renderer();
+renderer.code = (code, lang) => {
+  const language = (lang || "").split(/\s/)[0];
+  let html;
+  try {
+    html = language && hljs.getLanguage(language) ? hljs.highlight(code, { language }).value : hljs.highlightAuto(code).value;
+  } catch { html = esc(code); }
+  return `<div class="code-block"><div class="code-head"><span>${esc(language || "code")}</span><button data-copy-code>Copy</button></div><pre><code class="hljs">${html}</code></pre></div>`;
+};
+marked.setOptions({ renderer, gfm: true, breaks: true });
+const md = (text) => DOMPurify.sanitize(marked.parse(text || ""));
+
+// split Qwen output into reasoning + answer
+function splitThink(raw) {
+  const open = raw.indexOf("<think>");
+  if (open === -1) return { think: "", answer: raw, thinking: false };
+  const close = raw.indexOf("</think>", open);
+  if (close === -1) return { think: raw.slice(open + 7).trim(), answer: raw.slice(0, open), thinking: true };
+  return { think: raw.slice(open + 7, close).trim(), answer: (raw.slice(0, open) + raw.slice(close + 8)).trimStart(), thinking: false };
+}
+
+// ------------------------------------------------------------------ engine
+let engine = null, enginePromise = null, loadedModel = null, generating = false, hasF16 = false;
+const modelId = (base) => `${base}-${hasF16 ? "q4f16_1" : "q4f32_1"}-MLC`;
+const modelInfo = (base) => MODELS.find((m) => m.base === base) || MODELS[1];
+
+function setStatus(state, text) {
+  els.dot.className = "dot " + state;
+  els.modelName.textContent = text;
+}
+
+async function detectGPU() {
+  if (!("gpu" in navigator)) return false;
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) return false;
+    hasF16 = adapter.features.has("shader-f16");
+    return true;
+  } catch { return false; }
+}
+
+function loadModel(base) {
+  const info = modelInfo(base);
+  const id = modelId(info.base);
+  setStatus("loading", `Loading ${info.label.split(" ·")[0]}…`);
+  els.loadNote.hidden = false;
+  els.loadNote.innerHTML = `Getting <b>${esc(info.label.split(" ·")[0])}</b> ready. First time downloads ${info.size}; after that it's instant.`;
+  els.progress.style.width = "2%";
+  updateSendState();
+
+  enginePromise = (async () => {
+    const appConfig = { ...webllm.prebuiltAppConfig, useIndexedDBCache: location.protocol === "file:" };
+    const initProgressCallback = (p) => {
+      els.progress.style.width = Math.max(2, Math.round((p.progress || 0) * 100)) + "%";
+      const pct = Math.round((p.progress || 0) * 100);
+      els.loadNote.innerHTML = `<b>${pct}%</b> · ${esc((p.text || "").replace(/\[.*?\]\s*/, "").slice(0, 110))}`;
+    };
+    if (engine) {
+      await engine.reload(id);
+    } else {
+      engine = await webllm.CreateMLCEngine(id, { appConfig, initProgressCallback });
+    }
+    loadedModel = info.base;
+    return engine;
+  })();
+
+  enginePromise.then(() => {
+    setStatus("ready", info.label.split(" ·")[0]);
+    els.progress.style.width = "100%";
+    setTimeout(() => { els.progress.style.width = "0"; }, 600);
+    els.loadNote.hidden = true;
+    updateSendState();
+  }).catch((err) => {
+    console.error(err);
+    setStatus("error", "Model failed to load");
+    els.progress.style.width = "0";
+    els.loadNote.hidden = false;
+    els.loadNote.innerHTML = `<b>Couldn't load the model.</b> ${esc(String(err.message || err)).slice(0, 220)} <br>Try a smaller model in Settings, or reload the page.`;
+    enginePromise = null;
+    updateSendState();
+  });
+  return enginePromise;
+}
+
+// ------------------------------------------------------------------ conversations
+const active = () => convs.find((c) => c.id === activeId);
+
+function newConv() {
+  const c = { id: uid(), title: "New chat", created: Date.now(), updated: Date.now(), messages: [] };
+  convs.unshift(c); activeId = c.id; saveConvs();
+  return c;
+}
+
+function renderConvList() {
+  const q = $("search").value.trim().toLowerCase();
+  const list = convs.filter((c) => !q || c.title.toLowerCase().includes(q) || c.messages.some((m) => m.content.toLowerCase().includes(q)));
+  const now = Date.now(), day = 864e5;
+  const groups = { Today: [], "Previous 7 days": [], Older: [] };
+  for (const c of list) {
+    const age = now - c.updated;
+    (age < day ? groups.Today : age < 7 * day ? groups["Previous 7 days"] : groups.Older).push(c);
+  }
+  els.convList.innerHTML = "";
+  for (const [name, items] of Object.entries(groups)) {
+    if (!items.length) continue;
+    const lab = document.createElement("div"); lab.className = "group-label"; lab.textContent = name; els.convList.append(lab);
+    for (const c of items) {
+      const row = document.createElement("div");
+      row.className = "conv" + (c.id === activeId ? " active" : "");
+      row.innerHTML = `<span class="title"></span><span class="actions"><button class="icon-btn" data-act="rename" title="Rename">${ICONS.edit}</button><button class="icon-btn" data-act="delete" title="Delete">${ICONS.trash}</button></span>`;
+      row.querySelector(".title").textContent = c.title;
+      row.onclick = (e) => {
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        if (act === "rename") {
+          const t = prompt("Rename chat", c.title);
+          if (t && t.trim()) { c.title = t.trim().slice(0, 80); saveConvs(); renderConvList(); }
+        } else if (act === "delete") {
+          if (!confirm("Delete this chat?")) return;
+          convs = convs.filter((x) => x.id !== c.id);
+          if (activeId === c.id) activeId = convs[0]?.id || null;
+          saveConvs(); renderAll();
+        } else {
+          if (generating) return toast("Wait for the reply to finish (or stop it)");
+          activeId = c.id; saveConvs(); renderAll(); els.sidebar.classList.remove("show"); els.scrim.classList.remove("show");
+        }
+      };
+      els.convList.append(row);
+    }
+  }
+  if (!list.length) els.convList.innerHTML = `<div class="group-label" style="text-transform:none;letter-spacing:0">${q ? "No matches" : "No chats yet"}</div>`;
+}
+
+// ------------------------------------------------------------------ rendering messages
+function renderEmpty() {
+  els.thread.innerHTML = `
+    <div class="empty">
+      <div class="logo">Q</div>
+      <h1>What's on your mind?</h1>
+      <p>Private AI chat powered by Qwen, running entirely on your device.</p>
+      <div class="chips">${SUGGESTIONS.map(([t, s]) => `<button class="chip" data-suggest="${esc(s)}"><b>${esc(t)}</b><span>${esc(s)}</span></button>`).join("")}</div>
+    </div>`;
+}
+
+function msgEl(m, idx) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + m.role;
+  wrap.dataset.idx = idx;
+  if (m.role === "user") {
+    wrap.innerHTML = `<div class="bubble-col" style="display:flex;flex-direction:column;align-items:flex-end;max-width:100%;min-width:0"><div class="bubble"></div>
+      <div class="msg-tools"><button class="icon-btn" data-act="copy" title="Copy">${ICONS.copy}</button><button class="icon-btn" data-act="edit" title="Edit">${ICONS.edit}</button></div></div>`;
+    wrap.querySelector(".bubble").textContent = m.content;
+  } else {
+    wrap.innerHTML = `<div class="avatar">Q</div><div class="bubble"><div class="think-slot"></div><div class="content"></div>
+      <div class="msg-tools"><button class="icon-btn" data-act="copy" title="Copy">${ICONS.copy}</button><button class="icon-btn" data-act="regen" title="Regenerate">${ICONS.redo}</button><span class="meta"></span></div></div>`;
+    fillAssistant(wrap, m, false);
+  }
+  return wrap;
+}
+
+function fillAssistant(wrap, m, streaming) {
+  const slot = wrap.querySelector(".think-slot");
+  if (m.think) {
+    let d = slot.querySelector("details");
+    if (!d) {
+      slot.innerHTML = `<details class="think"><summary></summary><div class="think-body"></div></details>`;
+      d = slot.querySelector("details");
+      if (streaming) d.open = true;
+    }
+    d.querySelector("summary").textContent = m.thinking ? "Thinking…" : `Thought for ${m.thinkSecs ?? "a few"}s`;
+    d.querySelector(".think-body").textContent = m.think;
+    if (!m.thinking && streaming && d.dataset.closed !== "1") { d.open = false; d.dataset.closed = "1"; }
+  } else slot.innerHTML = "";
+  const content = wrap.querySelector(".content");
+  if (m.error) content.innerHTML = `<div class="error-box">${esc(m.error)}</div>`;
+  else content.innerHTML = md(m.content) || (streaming && !m.thinking ? "" : "");
+  content.classList.toggle("cursor", streaming && !m.thinking);
+  const meta = wrap.querySelector(".meta");
+  if (meta) meta.textContent = m.stats || "";
+}
+
+function renderThread() {
+  const c = active();
+  if (!c || !c.messages.length) return renderEmpty();
+  els.thread.innerHTML = "";
+  c.messages.forEach((m, i) => els.thread.append(msgEl(m, i)));
+  scrollBottom(true);
+}
+
+function scrollBottom(force) {
+  const box = els.messages;
+  const near = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+  if (force || (settings.autoScroll && near)) box.scrollTop = box.scrollHeight;
+}
+
+function renderAll() { renderConvList(); renderThread(); }
+
+// ------------------------------------------------------------------ chat logic
+function buildMessages(history) {
+  // Keep the system prompt + as many recent turns as fit in the context window.
+  const est = (s) => Math.ceil(s.length / 3.2) + 8;
+  let budget = CONTEXT_TOKENS - settings.max_tokens - est(settings.system) - 64;
+  const out = [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.error || (m.role === "assistant" && !m.content)) continue;
+    const cost = est(m.content);
+    if (cost > budget && out.length) break;
+    budget -= cost;
+    out.unshift({ role: m.role, content: m.role === "user" ? m.content : m.content.trim() });
+  }
+  // first message after system must be from the user
+  while (out.length && out[0].role !== "user") out.shift();
+  const sys = settings.system.trim();
+  return sys ? [{ role: "system", content: sys }, ...out] : out;
+}
+
+async function generate() {
+  const c = active();
+  if (!c) return;
+  generating = true; updateSendState();
+  const reply = { role: "assistant", content: "", think: "", thinking: false, stats: "" };
+  c.messages.push(reply);
+  const node = msgEl(reply, c.messages.length - 1);
+  els.thread.append(node);
+  fillAssistant(node, reply, true);
+  scrollBottom(true);
+
+  const history = c.messages.slice(0, -1);
+  let raw = "", usage = null, pending = false, thinkStart = null;
+  const t0 = performance.now();
+  const paint = () => {
+    pending = false;
+    const s = splitThink(raw);
+    if (s.think && thinkStart === null) thinkStart = performance.now();
+    if (!s.thinking && thinkStart !== null && reply.thinkSecs == null && s.think) reply.thinkSecs = Math.max(1, Math.round((performance.now() - thinkStart) / 1000));
+    reply.think = s.think; reply.thinking = s.thinking; reply.content = s.answer;
+    fillAssistant(node, reply, true);
+    scrollBottom(false);
+  };
+
+  try {
+    if (!enginePromise) loadModel(settings.model);
+    const eng = await enginePromise;
+    const info = modelInfo(loadedModel);
+    const req = {
+      messages: buildMessages(history),
+      stream: true,
+      stream_options: { include_usage: true },
+      temperature: settings.temperature,
+      top_p: settings.top_p,
+      max_tokens: settings.max_tokens,
+    };
+    if (info.think) req.extra_body = { enable_thinking: settings.think };
+    const stream = await eng.chat.completions.create(req);
+    for await (const chunk of stream) {
+      const delta = chunk.choices?.[0]?.delta?.content;
+      if (delta) { raw += delta; if (!pending) { pending = true; requestAnimationFrame(paint); } }
+      if (chunk.usage) usage = chunk.usage;
+    }
+    paint();
+    if (!reply.content.trim() && !reply.think) reply.content = "_(no response, try again or adjust the prompt)_";
+    const secs = (performance.now() - t0) / 1000;
+    if (usage) {
+      const tps = usage.extra?.decode_tokens_per_s ?? usage.completion_tokens / secs;
+      reply.stats = `${usage.completion_tokens} tokens · ${tps.toFixed(1)} tok/s`;
+      els.stats.textContent = `${tps.toFixed(1)} tok/s`;
+    }
+  } catch (err) {
+    console.error(err);
+    paint();
+    const msg = String(err?.message || err);
+    reply.error = /context|window|exceed/i.test(msg)
+      ? "This conversation is too long for the model's memory. Start a new chat or lower the max reply length."
+      : "Something went wrong: " + msg;
+  } finally {
+    reply.thinking = false;
+    fillAssistant(node, reply, false);
+    generating = false;
+    c.updated = Date.now();
+    saveConvs(); renderConvList(); updateSendState();
+    if (c.messages.length === 2 && c.title === "New chat") autoTitle(c);
+  }
+}
+
+function autoTitle(c) {
+  const first = c.messages.find((m) => m.role === "user")?.content || "New chat";
+  c.title = first.replace(/\s+/g, " ").trim().slice(0, 48) + (first.length > 48 ? "…" : "");
+  saveConvs(); renderConvList();
+}
+
+async function send(text) {
+  text = (text ?? els.input.value).trim();
+  if (!text || generating) return;
+  let c = active();
+  if (!c) c = newConv();
+  if (!c.messages.length) els.thread.innerHTML = "";
+  c.messages.push({ role: "user", content: text });
+  c.updated = Date.now();
+  els.thread.append(msgEl(c.messages.at(-1), c.messages.length - 1));
+  els.input.value = ""; autoGrow();
+  saveConvs(); renderConvList();
+  await generate();
+}
+
+function updateSendState() {
+  const s = els.send;
+  if (generating) { s.classList.add("stop"); s.innerHTML = ICONS.stop; s.disabled = false; s.setAttribute("aria-label", "Stop"); return; }
+  s.classList.remove("stop"); s.innerHTML = ICONS.send; s.setAttribute("aria-label", "Send");
+  s.disabled = !els.input.value.trim();
+}
+
+// ------------------------------------------------------------------ events
+els.input.addEventListener("input", () => { autoGrow(); updateSendState(); });
+function autoGrow() { els.input.style.height = "auto"; els.input.style.height = Math.min(els.input.scrollHeight, 220) + "px"; }
+els.input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+});
+els.send.onclick = () => {
+  if (generating) { engine?.interruptGenerate(); return; }
+  send();
+};
+
+els.thread.addEventListener("click", async (e) => {
+  const sug = e.target.closest("[data-suggest]");
+  if (sug) return send(sug.dataset.suggest);
+
+  const codeBtn = e.target.closest("[data-copy-code]");
+  if (codeBtn) {
+    const code = codeBtn.closest(".code-block").querySelector("code").innerText;
+    await navigator.clipboard?.writeText(code).catch(() => {});
+    codeBtn.textContent = "Copied!"; setTimeout(() => (codeBtn.textContent = "Copy"), 1400);
+    return;
+  }
+  const btn = e.target.closest("[data-act]");
+  if (!btn) return;
+  const wrap = btn.closest(".msg"); const idx = +wrap.dataset.idx; const c = active(); const m = c.messages[idx];
+  if (btn.dataset.act === "copy") {
+    await navigator.clipboard?.writeText(m.content).catch(() => {}); toast("Copied");
+  } else if (btn.dataset.act === "regen") {
+    if (generating) return;
+    c.messages.splice(idx); // drop this reply and anything after it
+    renderThread();
+    await generate();
+  } else if (btn.dataset.act === "edit") {
+    if (generating) return;
+    const bubble = wrap.querySelector(".bubble");
+    const col = wrap.querySelector(".bubble-col");
+    col.style.width = "100%";
+    bubble.outerHTML = `<div style="width:100%"><textarea class="edit-area"></textarea><div class="edit-btns"><button class="btn" data-edit="cancel">Cancel</button><button class="btn primary" data-edit="save">Save & send</button></div></div>`;
+    const ta = wrap.querySelector(".edit-area"); ta.value = m.content; ta.focus();
+    wrap.querySelector(".msg-tools").style.display = "none";
+    wrap.querySelector("[data-edit=cancel]").onclick = () => renderThread();
+    wrap.querySelector("[data-edit=save]").onclick = async () => {
+      const v = ta.value.trim(); if (!v) return;
+      c.messages.splice(idx); c.messages.push({ role: "user", content: v });
+      renderThread(); await generate();
+    };
+  }
+});
+
+$("newChat").onclick = () => {
+  if (generating) return toast("Wait for the reply to finish (or stop it)");
+  const c = active();
+  if (c && !c.messages.length) { els.input.focus(); return; }
+  newConv(); renderAll(); els.input.focus();
+  els.sidebar.classList.remove("show"); els.scrim.classList.remove("show");
+};
+$("search").oninput = renderConvList;
+$("menuBtn").onclick = () => { els.sidebar.classList.add("show"); els.scrim.classList.add("show"); };
+els.scrim.onclick = () => { els.sidebar.classList.remove("show"); closeDrawer(); };
+
+els.think.onclick = () => { settings.think = !settings.think; saveSettings(); syncThink(); toast(settings.think ? "Thinking mode on: slower but smarter" : "Thinking mode off"); };
+function syncThink() {
+  const supported = modelInfo(settings.model).think;
+  els.think.style.display = supported ? "" : "none";
+  els.think.classList.toggle("on", settings.think);
+}
+
+// theme
+function applyTheme() {
+  if (settings.theme === "auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", settings.theme);
+}
+$("themeBtn").onclick = () => {
+  const dark = settings.theme === "dark" || (settings.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  settings.theme = dark ? "light" : "dark"; saveSettings(); applyTheme();
+};
+
+// export
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("exportBtn").onclick = () => {
+  const c = active(); if (!c || !c.messages.length) return toast("Nothing to export yet");
+  const text = `# ${c.title}\n\n` + c.messages.map((m) => `**${m.role === "user" ? "You" : "Qwen"}:**\n\n${m.content}\n`).join("\n---\n\n");
+  download(`${c.title.replace(/[^\w\- ]+/g, "").trim() || "chat"}.md`, text, "text/markdown");
+};
+$("exportAll").onclick = () => download("qwen-chats.json", JSON.stringify({ convs, settings }, null, 2), "application/json");
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const incoming = (data.convs || []).filter((c) => c && c.id && Array.isArray(c.messages));
+    const ids = new Set(convs.map((c) => c.id));
+    convs = [...incoming.filter((c) => !ids.has(c.id)), ...convs].sort((a, b) => b.updated - a.updated);
+    saveConvs(); renderAll(); toast(`Imported ${incoming.length} chats`);
+  } catch { toast("That file isn't a valid export"); }
+  e.target.value = "";
+};
+$("clearAll").onclick = () => {
+  if (!confirm("Delete ALL chats? This can't be undone.")) return;
+  convs = []; activeId = null; saveConvs(); renderAll(); toast("All chats deleted");
+};
+$("clearCache").onclick = async () => {
+  if (!confirm("Delete downloaded model files? They'll re-download next time.")) return;
+  try {
+    const appConfig = { ...webllm.prebuiltAppConfig, useIndexedDBCache: location.protocol === "file:" };
+    for (const m of MODELS) for (const q of ["q4f16_1", "q4f32_1"]) {
+      await webllm.deleteModelAllInfoInCache(`${m.base}-${q}-MLC`, appConfig).catch(() => {});
+    }
+    toast("Model cache cleared");
+  } catch (err) { toast("Couldn't clear cache"); }
+};
+
+// settings drawer
+function openDrawer() { els.drawer.classList.add("show"); els.scrim.classList.add("show"); }
+function closeDrawer() { els.drawer.classList.remove("show"); if (!els.sidebar.classList.contains("show")) els.scrim.classList.remove("show"); }
+$("openSettings").onclick = () => { els.sidebar.classList.remove("show"); openDrawer(); };
+$("modelPill").onclick = openDrawer;
+$("closeSettings").onclick = closeDrawer;
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeDrawer(); els.sidebar.classList.remove("show"); els.scrim.classList.remove("show"); }
+});
+
+function initSettingsUI() {
+  const sel = $("modelSelect");
+  sel.innerHTML = MODELS.map((m) => `<option value="${m.base}">${m.label} (${m.size})</option>`).join("");
+  sel.value = settings.model;
+  sel.onchange = () => {
+    if (generating) { sel.value = settings.model; return toast("Wait for the reply to finish first"); }
+    settings.model = sel.value; saveSettings(); syncThink(); loadModel(settings.model);
+  };
+
+  const presets = $("presets");
+  const syncPresets = () => presets.querySelectorAll("button").forEach((b) => b.classList.toggle("on", PRESETS[b.textContent] === settings.system));
+  presets.innerHTML = Object.keys(PRESETS).map((k) => `<button>${k}</button>`).join("");
+  presets.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    settings.system = PRESETS[b.textContent]; $("systemPrompt").value = settings.system; saveSettings(); syncPresets();
+  };
+  const sp = $("systemPrompt"); sp.value = settings.system;
+  sp.oninput = () => { settings.system = sp.value; saveSettings(); syncPresets(); };
+  syncPresets();
+
+  const bindRange = (id, key, fmt) => {
+    const r = $(id), v = $(id + "Val");
+    r.value = settings[key]; v.textContent = fmt(settings[key]);
+    r.oninput = () => { settings[key] = +r.value; v.textContent = fmt(+r.value); saveSettings(); };
+  };
+  bindRange("temp", "temperature", (x) => x.toFixed(2));
+  bindRange("topP", "top_p", (x) => x.toFixed(2));
+  bindRange("maxTokens", "max_tokens", (x) => `${x} tokens`);
+  const as = $("autoScroll"); as.checked = settings.autoScroll;
+  as.onchange = () => { settings.autoScroll = as.checked; saveSettings(); };
+}
+
+// ------------------------------------------------------------------ boot
+async function boot() {
+  applyTheme();
+  initSettingsUI();
+  syncThink();
+  if (!active()) activeId = convs[0]?.id || null;
+  renderAll();
+  updateSendState();
+
+  const ok = await detectGPU();
+  if (!ok) {
+    setStatus("error", "WebGPU not available");
+    els.loadNote.hidden = false;
+    els.loadNote.innerHTML = `<b>Your browser can't run local AI yet.</b> Open this page in a recent Chrome, Edge or Brave on desktop (or Chrome on Android). Safari 26+ also works.`;
+    return;
+  }
+  const hint = $("modelHelp");
+  hint.textContent = `Downloaded once, then cached for instant offline use. GPU: ${hasF16 ? "fp16 supported (faster)" : "fp32 mode"}.`;
+  loadModel(settings.model);
+}
+boot();
+</script>
+</body>
+</html>
