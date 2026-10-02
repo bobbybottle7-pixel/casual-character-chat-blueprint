@@ -8027,3 +8027,39 @@ body.image-gen-off .generate-image-btn {
         font-size: 14px;
     }
 }
+
+
+/* AI Horde queue status and model-substitution notes. */
+#horde-status {
+    position: fixed;
+    left: 50%;
+    bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+    transform: translate(-50%, 12px);
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: rgba(20, 22, 34, 0.94);
+    border: 1px solid rgba(167, 139, 250, 0.45);
+    color: #e9e4ff;
+    font-size: 13px;
+    line-height: 1.35;
+    text-align: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease, transform .25s ease;
+}
+#horde-status.visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
+.settings-hint {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, .6);
+}
+.settings-hint a {
+    color: #a78bfa;
+}

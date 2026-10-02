@@ -10,13 +10,13 @@ Create your own AI characters, start role-playing chats, and keep full control o
 
 1. **Download** — Click the green **<> Code** button above and select **Download ZIP**, then extract it.
 2. **Open the app** — On **desktop**: double-click `index.html`. On **mobile**: open the **standalone HTML file** instead (or use a live server app), as smartphones block linked CSS/scripts when opening HTML files directly.
-3. **Add your API key** — In the app, go to **⚙️ Global App Settings** and paste your API key from a provider - e.g., [OpenRouter](https://openrouter.ai). Done!
+3. **Start chatting** — No key, no account, no payment. The built-in models are uncensored and run free on the [AI Horde](https://aihorde.net), a volunteer-run network; replies usually take 10–60 seconds.
 
 ---
 
 ### 🧠 Models
 
-The app ships with every free chat model OpenRouter currently offers. See **[MODELS.md](MODELS.md)** for what each one is good and bad at, plus paid uncensored options.
+Every built-in model is uncensored and free, served by the AI Horde. See **[MODELS.md](MODELS.md)** for what each one is good and bad at, how to add more, and optional paid ones.
 
 ---
 
@@ -41,6 +41,8 @@ Want a full VS Code editor in your browser? Click the green **<> Code** button �
 ### A Note on Your Data & Privacy
 
 Your privacy is paramount. All of your data (including every character you create, all your chat histories, images, and your personal settings) is stored directly on your computer inside your browser's secure **IndexedDB** database. This means your data remains entirely on your device, is preserved even after you close the browser tab, and can never be accessed by anyone else.
+
+To write a reply, the conversation itself has to reach a model. With the built-in models it goes through the AI Horde to a volunteer's computer. The Horde doesn't know who you are, but a volunteer could in theory log what their machine generates, so keep real personal details out of your chats.
 
 All API calls go directly from your browser to your chosen AI provider — no intermediary server is involved in this version of the app.
 
@@ -326,7 +328,9 @@ A: This happens if your browser's site data was deleted. This can be caused by b
     * Open the **standalone HTML file** (included in the folder) in your mobile browser — it bundles everything into one file and works out of the box.
     * Or open `index.html` via a **live server app** on your device (e.g. the "Live Server" app).
 
-### Step 2: Get Your API Key from OpenRouter
+### Step 2 (optional): Get an API Key from OpenRouter
+
+The built-in models need no key. Only do this if you want to add models from OpenRouter.
 
 1.  **Create an Account:** Go to [OpenRouter.ai](https://openrouter.ai) and create a free account.
 2.  **Add Credits (recommended):** You get 50 free messages per day. For regular use, add $10 in credits once — this unlocks 1,000 free messages per day, forever, even after spending those credits. Go to **Settings → Credits & Usage**.
@@ -336,6 +340,6 @@ A: This happens if your browser's site data was deleted. This can be caused by b
 ### Step 3: Connect Your API Key
 
 1.  In Casual Character Chat, click **⚙️ Global App Settings** on the main screen.
-2.  Paste your key into the **"Default API Key (OpenRouter)"** field.
+2.  Paste your key into the **"OpenRouter API Key (optional)"** field.
 3.  Click **Save Settings**. You're done — start chatting!
 

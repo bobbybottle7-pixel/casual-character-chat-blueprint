@@ -716,8 +716,14 @@
         <form id="app-settings-form">
             
 <div class="settings-input-group">
-    <label for="api-key-input">Default API Key (OpenRouter):</label>
-    <input type="password" id="api-key-input" class="settings-input" placeholder="sk-or-...">
+    <label for="api-key-input">OpenRouter API Key (optional):</label>
+    <input type="password" id="api-key-input" class="settings-input" placeholder="Only for OpenRouter models (sk-or-...)">
+</div>
+
+<div class="settings-input-group">
+    <label for="horde-api-key-input">AI Horde API Key (optional):</label>
+    <input type="password" id="horde-api-key-input" class="settings-input" placeholder="Empty = free anonymous queue">
+    <p class="settings-hint">The built-in uncensored models run free on the <a href="https://aihorde.net" target="_blank" rel="noopener">AI Horde</a> with no key. A free key from aihorde.net/register moves you up the queue.</p>
 </div>
 
 

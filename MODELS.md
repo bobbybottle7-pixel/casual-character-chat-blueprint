@@ -1,64 +1,51 @@
 # Model Guide
 
-Every model below runs through [OpenRouter](https://openrouter.ai). The list was checked against OpenRouter's live model catalog in October 2026. Free models come and go, so if one stops answering, switch to **Openrouter: Free**, which always routes to whatever free model is up.
+Every model in the app is an **uncensored** model, and all of them are **free**. No account, no API key, no payment.
 
-## The one-time setup (free, no card)
+They run on the [AI Horde](https://aihorde.net), a free network where volunteers share their computers to run community AI models. The app sends your message into the Horde's queue, and a volunteer's machine writes the reply. While you wait, a small bar above the message box shows your place in the queue.
 
-1. Make an account at [openrouter.ai](https://openrouter.ai). No payment details needed.
-2. Go to **Keys** → **Create Key** and copy it.
-3. In the app: **⚙️ Global App Settings** → paste the key → save.
+Everything below was checked live on **October 2, 2026**. Every model here replied in character through the app, and the times are what those test messages took. The Horde is run by volunteers, so which models are online and how fast they answer changes hour to hour.
 
-The free models have a daily message cap per account. It's enough for normal chatting; check OpenRouter's docs for the current number.
+## How it behaves
 
-## A straight answer on "uncensored"
+- **No setup.** Open the app, pick a character, chat.
+- **Replies take about 10–60 seconds**, sometimes longer when the queue is busy. They arrive all at once instead of word by word.
+- **If your model is offline,** the app automatically answers with another uncensored model and tells you which one stood in.
+- **Stopping a reply** cancels it on the Horde too, so it doesn't waste a volunteer's time.
+- **Want shorter waits?** Make a free account at [aihorde.net/register](https://aihorde.net/register) and paste the key into **⚙️ Global App Settings → AI Horde API Key**. Registered users get priority over anonymous ones. Still free.
 
-None of the free models are uncensored fine-tunes. They're mainstream open models with their normal safety training. They still handle dark themes, violence, horror and mature roleplay much better than ChatGPT-style apps, especially with the app's built-in roleplay instructions. Every free model's instructions already tell it to describe dark scenes authentically. What you'll still run into: refusals on the most explicit stuff, and some models breaking character to add a warning.
+## The models
 
-The truly uncensored roleplay models on OpenRouter all cost money (see the last table). They're cheap, but not free.
-
-## Free models (in the app)
-
-| Model | Context | What it is | Pros | Cons |
+| Model | Size | Speed in testing | Pros | Cons |
 |---|---|---|---|---|
-| **Openrouter: Free** (default) | 200K | Picks a random working free model for each message | Never breaks when a free model is pulled; zero thinking required | Writing style changes from message to message; you don't control which model answers |
-| **NVIDIA: Nemotron 3 Ultra** | 1M | 550B mixture-of-experts reasoning model, NVIDIA's biggest | Smartest free option; follows long character cards and plot details well | Slower; reasoning-tuned, so prose can feel dry; enterprise-style safety training |
-| **Thinking Machines: Inkling** | 1M | 975B multimodal mixture-of-experts | Huge model, strong general writing and memory over long chats | New, so roleplay behavior is less proven; can be slow at busy times |
-| **NVIDIA: Nemotron 3 Super** | 262K | 120B MoE, 12B active | Good balance of smart and fast | Same corporate-leaning tone as Ultra |
-| **Thinking Machines: Inkling Small** | 1M | Smaller Inkling (12B active of 276B) | Faster than full Inkling, still capable; huge context | Less depth and creativity than the big one |
-| **Dots Studio: Dots3-Note Preview** | 512K | 280B MoE, open weights, preview build | Fresh model, big context, often less preachy than big-lab models | "Preview" means it can change or vanish; quality is less predictable |
-| **Qwen: Qwen3.8 27B** | 262K | Alibaba's dense 27B model | Reliable, sharp at following instructions; Qwen models are usually fairly permissive with fiction | Mid-size, so prose is sometimes generic; can slip into a "helpful assistant" voice |
-| **Google: Gemma 4 31B** | 262K | Google's open 31B model | Natural, readable prose; good at staying in character | Google safety training means more refusals on explicit content than the others |
-| **Google: Gemma 4 26B A4B** | 262K | Lighter, faster Gemma 4 | Quick replies, near-31B quality | Same Google filtering; slightly weaker on complex scenes |
-| **NVIDIA: Nemotron 3.5 Lightning** | 1M | Small fast MoE (3B active) | Fastest replies on the list | Smallest brain here: forgets details and writes simpler |
+| **Any Uncensored Model (fastest)** (default) | varies | 8–11s | Always picks whichever uncensored models have the most free volunteers right now, so it's the quickest and most reliable | You don't choose the model, so the writing style can change between messages |
+| **Behemoth-X 123B** (TheDrummer) | 123B | 28–48s | The biggest and smartest here. Best at long scenes, staying in character and remembering details | The slowest: few volunteers can run a model this size |
+| **Skyfall 31B** (TheDrummer) | 31B | 9–15s | The workhorse: the most volunteers, so it's fast and almost always online. Strong, lively writing | Less depth than Behemoth on complicated plots |
+| **Magidonia 24B** (TheDrummer) | 24B | ~17s | Witty, vivid, great banter and character voice | Likes to write long and can get cut off at the length limit (use Continue) |
+| **Rocinante X 12B** (TheDrummer) | 12B | ~25s | Creative and unpredictable, good for adventure | Smaller brain; sometimes writes actions in *asterisks* despite the app's style rules |
+| **Mini Magnum 12B** (Anthracite) | 12B | ~16s | Polished, natural prose for its size | Shorter, simpler replies; forgets details in long chats |
+| **Stheno 8B** (Sao10K) | 8B | ~41s | A classic uncensored roleplay model. Many volunteers run copies, so it's nearly always online | Small: plainer writing and weaker memory |
+| **Gemma 4 31B Heretic** | 31B | ~115s | Google's Gemma 4 with its refusals stripped out ("heretic" = de-censored). Smart and coherent | Slow on the Horde right now, and the prose feels a bit corporate |
+| **Gemma 4 E4B Uncensored** | ~4B | ~40s | De-censored small Gemma 4. Decent for its size | Small model limits: simple writing, short memory |
+| **Impish Llama 4B** (SicariusSicariiStuff) | 4B | ~12s | Tiny, fast, and built to be uncensored | The weakest writer on the list |
 
-**My picks:** start with **Nemotron 3 Ultra** or **Inkling** for quality, **Qwen3.8 27B** when one of them refuses something, and **Openrouter: Free** when everything else is rate-limited.
+**Picks:** stay on **Any Uncensored Model** for speed. Switch to **Behemoth-X 123B** when you want the best writing and don't mind waiting, or **Skyfall 31B** for the best mix of quality and speed.
 
-Left out on purpose: free models built for medicine, coding, research agents, content moderation or music, since they're bad at chat.
+## Adding more Horde models
 
-## Paid models already in the app
+The full live list is at [aihorde.net](https://aihorde.net) (or [lite.koboldai.net](https://lite.koboldai.net)). To add one, open **⚙️ Global App Settings → + Add new Model**, give it any name, and set the ID to `horde:` followed by part of the model's name, for example `horde:cydonia`. Join words with `+` when one isn't enough: `horde:gemma-4-31b+heretic`. Matching by name keeps the entry working when volunteers upgrade to a newer version of the same model.
 
-These were in the app before and still are. They need credits on your OpenRouter account and give an error without them.
+## Privacy
 
-| Model | Cost | Notes |
-|---|---|---|
-| Mistral: Mistral Nemo | ~$0.00005/msg | Lightly filtered, decent roleplay for almost nothing |
-| Sao10K: Llama 3 8B Lunaris | ~$0.00009/msg | Roleplay fine-tune, uncensored-leaning, small |
-| DeepSeek V4 Flash | ~$0.00009/msg | Smart and cheap, fairly permissive |
-| Qwen3.7 Flash | ~$0.00016/msg | Fast all-rounder |
-| Gemma 4 31B (paid) | ~$0.00043/msg | Same as the free one, without the daily cap |
-| GLM 4.7 Flash | ~$0.00046/msg | Good creative writing |
+Your characters and chats are saved only in your browser. But to write a reply, the conversation is sent through the AI Horde to a volunteer's computer. The Horde doesn't know who you are when you use it without a key, but a volunteer could, in theory, log what their machine generates. **Don't put real names, addresses or other personal details in your chats.**
 
-## Actually uncensored models (paid, not in the app)
+## Optional: paid uncensored models
 
-If you ever drop a few dollars on OpenRouter, these are built specifically to have no content filter. Add any of them in **Global App Settings** → **Add Model** using the ID.
+You never need these. They answer faster and with stronger writing, for a fraction of a cent per message, if you ever put a few dollars on [OpenRouter](https://openrouter.ai). Add your key under **⚙️ Global App Settings → OpenRouter API Key**, then add the model with **+ Add new Model** using the ID below.
 
-| Model ID | Price per 1M tokens (in/out) | Pros | Cons |
-|---|---|---|---|
-| `cognitivecomputations/dolphin-mistral-24b-venice-edition` | $0.20 / $0.90 | Made to be uncensored; follows instructions well | Plain writing style |
-| `thedrummer/cydonia-24b-v4.1` | $0.30 / $0.50 | Uncensored creative-writing fine-tune; good memory | 24B, not the deepest thinker |
-| `thedrummer/unslopnemo-12b` | $0.40 / $0.40 | Adventure and roleplay focused, avoids clichéd "AI prose" | Small model |
-| `sao10k/l3.3-euryale-70b` | $0.65 / $0.75 | Community favorite for roleplay, rich descriptions | Pricier per message |
-| `nousresearch/hermes-4-405b` | $1.00 / $3.00 | Huge, smart, very lightly filtered | Most expensive here |
-| `gryphe/mythomax-l2-13b` | $0.08 / $0.11 | Classic roleplay model, dirt cheap | Old, with an 8K context, so it forgets quickly |
-
-A typical chat message is roughly 2–4K tokens, so even the pricey ones are fractions of a cent per message.
+| Model ID | Notes |
+|---|---|
+| `thedrummer/cydonia-24b-v4.1` | Uncensored creative-writing model, $0.30/$0.50 per 1M tokens |
+| `sao10k/l3.3-euryale-70b` | Roleplay favorite with rich descriptions, $0.65/$0.75 |
+| `cognitivecomputations/dolphin-mistral-24b-venice-edition` | Built to be uncensored, $0.20/$0.90 |
+| `nousresearch/hermes-4-405b` | Huge and very lightly filtered, $1/$3 |

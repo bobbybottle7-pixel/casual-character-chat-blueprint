@@ -184,6 +184,27 @@ const RETIRED_DEFAULT_MODEL_ID = "z-ai/glm-4.5-air:free";
 
 // True only for that untouched one-entry list. Anyone who has added, renamed or
 // removed a model no longer matches, so a curated list is never overwritten.
+// Model ids the app shipped before it moved to the AI Horde. A saved list made
+// only of these, with the shipped prompts unchanged, was never customised, so
+// it is replaced with the current list instead of being kept.
+const PREVIOUSLY_SHIPPED_MODEL_IDS = new Set([
+    'openrouter/free', 'mistralai/mistral-nemo', 'sao10k/l3-lunaris-8b',
+    'deepseek/deepseek-v4-flash-0731', 'qwen/qwen3.7-flash', 'google/gemma-4-31b-it',
+    'z-ai/glm-4.7-flash', 'nvidia/nemotron-3-ultra-550b-a55b:free', 'thinkingmachines/inkling:free',
+    'nvidia/nemotron-3-super-120b-a12b:free', 'thinkingmachines/inkling-small:free',
+    'dots-studio/dots-3-note-preview:free', 'qwen/qwen3.8-27b:free', 'google/gemma-4-31b-it:free',
+    'google/gemma-4-26b-a4b-it:free', 'nvidia/nemotron-3.5-lightning:free'
+]);
+
+function isUntouchedShippedModelList(models) {
+    const shipped = STARTER_PACK_MODELS[0] || {};
+    return Array.isArray(models) && models.length > 0 && models.every(m => m
+        && PREVIOUSLY_SHIPPED_MODEL_IDS.has(m.id) && !m.targetApiUrl && !m.apiKey
+        && (m.instructions || '') === (shipped.instructions || '')
+        && (m.reminder || '') === (shipped.reminder || '')
+        && (m.narratorReminder || '') === (shipped.narratorReminder || ''));
+}
+
 function isUntouchedRetiredModelList(models) {
     return Array.isArray(models)
         && models.length === 1
@@ -327,6 +348,397 @@ function getReplyLengthVerbosityConfig(targetApiUrl, value) {
     return isOpenRouterChatCompletionsUrl(targetApiUrl) && verbosity
         ? { verbosity }
         : {};
+}
+
+// --- AI Horde ----------------------------------------------------------------
+// The AI Horde (aihorde.net) is a free network of volunteer-run models, most of
+// them uncensored roleplay finetunes. It needs no account: requests made with
+// the anonymous key just wait longer in the queue. Its API is not
+// OpenAI-compatible (it takes one raw prompt and runs it as a queued job), so
+// requestChatCompletion() translates: it writes the chat in the model's
+// instruct format, submits the job, polls it, and answers with the same SSE
+// stream an OpenAI-style provider sends, so every caller works unchanged.
+const HORDE_API = 'https://aihorde.net/api/v2';
+const HORDE_ANONYMOUS_KEY = '0000000000';
+// The Horde asks every client to name itself and a contact.
+const HORDE_CLIENT_AGENT = 'casual-character-chat:1.0:github.com/bobbybottle7-pixel/casual-character-chat-blueprint';
+// Model ids are "horde:" plus words that must all appear in the live model's
+// name ("horde:gemma-4-31b+heretic"), so an entry keeps working when the
+// volunteers move on to a newer version of the same model.
+const HORDE_MODEL_PREFIX = 'horde:';
+const HORDE_ANY_MODEL_ID = 'horde:any';
+const HORDE_POLL_MS = 3000;
+const HORDE_CACHE_MS = 2 * 60 * 1000;
+const HORDE_MAX_WAIT_MS = 8 * 60 * 1000;
+const HORDE_CONTEXT_TOKENS = 8192;
+// Conservative, so the prompt fits even when a word costs more tokens.
+const HORDE_CHARS_PER_TOKEN = 3.2;
+const HORDE_REPLY_TOKENS = { low: 200, medium: 350, high: 650 };
+const HORDE_DEFAULT_REPLY_TOKENS = 450;
+// Finetunes known to be uncensored. "Any" only picks among these, so it never
+// lands on a stock instruct model that refuses.
+const HORDE_UNCENSORED = /behemoth-x|skyfall|magidonia|cydonia|rocinante|stheno|lunaris|euryale|magnum|unslop|impish|heretic|uncensored|abliterat/i;
+
+// Instruct formats, checked against the models live on the Horde in October
+// 2026. A model without a system role gets the instructions at the start of
+// the first user turn.
+const HORDE_TEMPLATES = {
+    chatml: {
+        turn: (role, text) => `<|im_start|>${role}\n${text}<|im_end|>\n`,
+        reply: '<|im_start|>assistant\n',
+        stops: ['<|im_end|>', '<|im_start|>'],
+        systemRole: true
+    },
+    llama3: {
+        turn: (role, text) => `<|start_header_id|>${role}<|end_header_id|>\n\n${text}<|eot_id|>`,
+        reply: '<|start_header_id|>assistant<|end_header_id|>\n\n',
+        stops: ['<|eot_id|>', '<|start_header_id|>'],
+        systemRole: true
+    },
+    mistral: {
+        turn: (role, text) => role === 'user' ? `[INST] ${text} [/INST]` : ` ${text}</s>`,
+        reply: '',
+        stops: ['[INST]', '</s>'],
+        systemRole: false
+    },
+    gemma: {
+        turn: (role, text) => `<start_of_turn>${role === 'assistant' ? 'model' : 'user'}\n${text}<end_of_turn>\n`,
+        reply: '<start_of_turn>model\n',
+        stops: ['<end_of_turn>', '<start_of_turn>'],
+        systemRole: false
+    }
+};
+
+function isHordeModelId(id) {
+    return typeof id === 'string' && id.startsWith(HORDE_MODEL_PREFIX);
+}
+
+function hordeTemplateName(modelName) {
+    const name = modelName.toLowerCase();
+    if (name.includes('gemma')) return 'gemma';
+    if (/llama[-_ ]?3|(^|[\/_-])l3[.-]|stheno|lunaris|euryale|impish_llama/.test(name)) return 'llama3';
+    // Behemoth-X falls through to ChatML: it answers gibberish in Mistral format.
+    if (/mistral|nemo|skyfall|magidonia|cydonia|magistral/.test(name)) return 'mistral';
+    return 'chatml';
+}
+
+function hordeFamilyMatches(modelId, modelName) {
+    const name = modelName.toLowerCase();
+    return modelId.slice(HORDE_MODEL_PREFIX.length).toLowerCase().split('+')
+        .filter(Boolean)
+        .every(word => name.includes(word));
+}
+
+function hordeShortName(modelName) {
+    return String(modelName).split('/').pop();
+}
+
+function hordeError(userMessage) {
+    const error = new Error(userMessage);
+    error.userMessage = userMessage;
+    return error;
+}
+
+function hordeAbortError() {
+    return new DOMException('The request was aborted.', 'AbortError');
+}
+
+const hordeCache = new Map();
+function hordeGet(path) {
+    const hit = hordeCache.get(path);
+    if (hit && Date.now() - hit.at < HORDE_CACHE_MS) return hit.promise;
+    const promise = fetch(HORDE_API + path, { headers: { 'Client-Agent': HORDE_CLIENT_AGENT } })
+        .then(res => {
+            if (!res.ok) throw hordeError(`The AI Horde is not answering right now (status ${res.status}). Try again in a minute.`);
+            return res.json();
+        });
+    hordeCache.set(path, { at: Date.now(), promise });
+    promise.catch(() => hordeCache.delete(path));
+    return promise;
+}
+
+function hordeSleep(ms, signal) {
+    return new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(hordeAbortError());
+        const onAbort = () => {
+            clearTimeout(timer);
+            reject(hordeAbortError());
+        };
+        const timer = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
+}
+
+// Picks the live models a request may run on: every live version of the named
+// model, or, for "Any" and for a model that is offline, the uncensored models
+// sharing the instruct format with the most free workers.
+async function planHordeModels(modelId) {
+    const live = (await hordeGet('/status/models?type=text')).filter(m => m && m.name && m.count > 0);
+    if (modelId !== HORDE_ANY_MODEL_ID) {
+        const named = live.filter(m => hordeFamilyMatches(modelId, m.name));
+        if (named.length > 0) {
+            const template = hordeTemplateName(named[0].name);
+            return {
+                names: named.filter(m => hordeTemplateName(m.name) === template).map(m => m.name),
+                template,
+                substituted: false
+            };
+        }
+    }
+    const groups = {};
+    for (const m of live.filter(m => HORDE_UNCENSORED.test(m.name))) {
+        const template = hordeTemplateName(m.name);
+        groups[template] = groups[template] || { names: [], template, score: 0 };
+        groups[template].names.push(m.name);
+        groups[template].score += m.count / (1 + (m.eta || 0) / 60);
+    }
+    const best = Object.values(groups).sort((a, b) => b.score - a.score)[0];
+    if (!best) throw hordeError('No uncensored model is online on the AI Horde right now. Try again in a few minutes.');
+    return { names: best.names, template: best.template, substituted: modelId !== HORDE_ANY_MODEL_ID };
+}
+
+// A worker only takes jobs within its own context and reply limits, so the
+// request asks for no more than the best worker for these models offers.
+async function planHordeParams(names, replyTokens) {
+    let workers = [];
+    try {
+        workers = await hordeGet('/workers?type=text');
+    } catch (_) {
+        // The limits are an optimisation; modest values suit most workers.
+    }
+    const serving = workers.filter(w => w && w.online !== false && !w.maintenance_mode
+        && (w.models || []).some(m => names.includes(m)));
+    if (serving.length === 0) return { ctx: 4096, len: Math.min(replyTokens, 300) };
+    const ctx = Math.min(HORDE_CONTEXT_TOKENS, Math.max(...serving.map(w => w.max_context_length || 0)));
+    const roomy = serving.filter(w => (w.max_context_length || 0) >= ctx);
+    // A reply never gets more than half the context, or the prompt has no room.
+    const len = Math.min(replyTokens, Math.floor(ctx / 2), Math.max(...roomy.map(w => w.max_length || 0)));
+    return { ctx: Math.max(80, ctx), len: Math.max(16, len) };
+}
+
+// Keeps the system prompt and the newest turns, dropping the oldest turns
+// first, so a worker never has to cut the start of the prompt itself.
+function fitHordeMessages(messages, maxChars) {
+    const systemCap = Math.floor(maxChars * 0.6);
+    let system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n\n');
+    if (system.length > systemCap) system = `${system.slice(0, systemCap)}\n[...]`;
+    const turns = messages.filter(m => m.role !== 'system');
+    const kept = [];
+    let used = system.length;
+    for (let i = turns.length - 1; i >= 0; i--) {
+        const content = String(turns[i].content || '');
+        if (kept.length > 0 && used + content.length > maxChars) break;
+        const room = Math.max(0, maxChars - used);
+        kept.unshift({ role: turns[i].role, content: content.length > room ? content.slice(content.length - room) : content });
+        used += Math.min(content.length, room);
+    }
+    return system ? [{ role: 'system', content: system }, ...kept] : kept;
+}
+
+function formatHordePrompt(templateName, messages) {
+    const template = HORDE_TEMPLATES[templateName];
+    let system = '';
+    // Runs of one role are merged: narrator and character replies can follow
+    // each other, and the formats expect user and assistant to alternate.
+    const turns = [];
+    for (const m of messages) {
+        if (m.role === 'system') {
+            system = system ? `${system}\n\n${m.content}` : m.content;
+            continue;
+        }
+        const role = m.role === 'assistant' ? 'assistant' : 'user';
+        const last = turns[turns.length - 1];
+        if (last && last.role === role) last.text += `\n\n${m.content}`;
+        else turns.push({ role, text: m.content });
+    }
+    let head = '';
+    if (system && template.systemRole) {
+        head = template.turn('system', system);
+    } else if (system) {
+        if (turns[0]?.role === 'user') turns[0].text = `${system}\n\n${turns[0].text}`;
+        else turns.unshift({ role: 'user', text: system });
+    }
+    return head + turns.map(t => template.turn(t.role, t.text)).join('') + template.reply;
+}
+
+function cleanHordeText(text) {
+    let out = String(text || '');
+    // Gemma 4 opens with its thinking channel; any thoughts become <think>.
+    out = out.replace(/<\|channel>(?:thought)?([\s\S]*?)<channel\|>/g,
+        (_, inner) => inner.trim() ? `<think>${inner.trim()}</think>\n` : '');
+    // Past a new turn marker the model is writing the next turn itself.
+    const cut = out.search(/<\|im_start\|>|<\|start_header_id\|>|\[INST\]|<start_of_turn>/);
+    if (cut !== -1) out = out.slice(0, cut);
+    return out.replace(/<\|im_end\|>|<\|eot_id\|>|<\/s>|<end_of_turn>|\[\/INST\]/g, '').trim();
+}
+
+let hordeStatusTimer = null;
+function setHordeStatus(text, autoHideMs = 0) {
+    let el = document.getElementById('horde-status');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'horde-status';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        document.body.appendChild(el);
+    }
+    clearTimeout(hordeStatusTimer);
+    if (!text) {
+        el.classList.remove('visible');
+        return;
+    }
+    el.textContent = text;
+    el.classList.add('visible');
+    if (autoHideMs) hordeStatusTimer = setTimeout(() => el.classList.remove('visible'), autoHideMs);
+}
+
+function describeHordeStatus(status) {
+    if (status.processing > 0) return 'Writing your reply on the AI Horde...';
+    const parts = ['Waiting in the free AI Horde queue'];
+    if (status.queue_position > 0) parts.push(`position ${status.queue_position}`);
+    if (status.wait_time > 0) parts.push(`about ${status.wait_time}s`);
+    return parts.join(' · ') + (status.might_stall ? ' (busy right now)' : '');
+}
+
+async function submitHordeJob(plan, messages, body, signal) {
+    const replyTokens = HORDE_REPLY_TOKENS[body.verbosity] || HORDE_DEFAULT_REPLY_TOKENS;
+    const { ctx, len } = await planHordeParams(plan.names, replyTokens);
+    const maxChars = Math.max(1000, Math.floor((ctx - len - 100) * HORDE_CHARS_PER_TOKEN));
+    const prompt = formatHordePrompt(plan.template, fitHordeMessages(messages, maxChars));
+    return fetch(`${HORDE_API}/generate/text/async`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: appSettings.hordeApiKey || HORDE_ANONYMOUS_KEY,
+            'Client-Agent': HORDE_CLIENT_AGENT
+        },
+        body: JSON.stringify({
+            prompt,
+            models: plan.names,
+            params: {
+                n: 1,
+                max_context_length: ctx,
+                max_length: len,
+                temperature: Math.min(5, Number(body.temperature) || 0.8),
+                top_p: Math.min(1, Math.max(0.001, Number(body.top_p) || 0.95)),
+                min_p: 0.05,
+                rep_pen: 1.05,
+                rep_pen_range: 1024,
+                stop_sequence: HORDE_TEMPLATES[plan.template].stops,
+                frmttriminc: true
+            }
+        }),
+        signal
+    });
+}
+
+function cancelHordeJob(id) {
+    fetch(`${HORDE_API}/generate/text/status/${id}`, {
+        method: 'DELETE',
+        headers: { 'Client-Agent': HORDE_CLIENT_AGENT }
+    }).catch(() => {});
+}
+
+// Resolves with the finished generation, or null when no worker can take the
+// job any more (its model went offline after it was queued).
+async function pollHordeJob(id, signal, quiet) {
+    const started = Date.now();
+    let failures = 0;
+    while (true) {
+        await hordeSleep(HORDE_POLL_MS, signal);
+        let status;
+        try {
+            const res = await fetch(`${HORDE_API}/generate/text/status/${id}`, {
+                headers: { 'Client-Agent': HORDE_CLIENT_AGENT },
+                signal
+            });
+            if (res.status === 429) continue;
+            if (res.status === 404) throw hordeError('The AI Horde lost this request. Please try again.');
+            if (!res.ok) throw new Error(`AI Horde status ${res.status}`);
+            status = await res.json();
+            failures = 0;
+        } catch (error) {
+            if (error.name === 'AbortError' || error.userMessage) throw error;
+            if (++failures >= 5) throw hordeError('Lost the connection to the AI Horde. Check your internet connection and try again.');
+            continue;
+        }
+        if (status.faulted) throw hordeError('The AI Horde could not finish this reply. Please try again.');
+        if (status.done) return status.generations?.[0] || null;
+        if (status.is_possible === false) return null;
+        if (!quiet) setHordeStatus(describeHordeStatus(status));
+        if (Date.now() - started > HORDE_MAX_WAIT_MS) {
+            throw hordeError('The free AI Horde queue is very busy right now. Try again soon, or pick "Any Uncensored Model".');
+        }
+    }
+}
+
+async function hordeChatCompletion(body, signal, quiet) {
+    const messages = (body.messages || []).map(m => ({ role: m.role, content: String(m.content ?? '') }));
+    let plan = await planHordeModels(body.model);
+    let res = await submitHordeJob(plan, messages, body, signal);
+    if (!res.ok) return res;
+    let { id } = await res.json();
+    if (!quiet) setHordeStatus('Sent to the free AI Horde queue...');
+
+    const stream = new ReadableStream({
+        async start(controller) {
+            // Cancelling a stopped job frees the volunteer's worker for others.
+            const onAbort = () => cancelHordeJob(id);
+            if (signal?.aborted) onAbort();
+            else signal?.addEventListener('abort', onAbort, { once: true });
+            try {
+                let generation = await pollHordeJob(id, signal, quiet);
+                if (!generation && body.model !== HORDE_ANY_MODEL_ID && !plan.substituted) {
+                    // The model went offline while queued: one retry on "Any".
+                    cancelHordeJob(id);
+                    plan = { ...(await planHordeModels(HORDE_ANY_MODEL_ID)), substituted: true };
+                    res = await submitHordeJob(plan, messages, body, signal);
+                    if (!res.ok) throw hordeError(`The AI Horde refused the request (status ${res.status}). Please try again.`);
+                    ({ id } = await res.json());
+                    generation = await pollHordeJob(id, signal, quiet);
+                }
+                if (!generation) throw hordeError('No AI Horde worker can take this request right now. Try again in a minute or pick another model.');
+                const answeredBy = generation.model || plan.names[0];
+                const text = cleanHordeText(generation.text);
+                if (!quiet) {
+                    if (plan.substituted) {
+                        const picked = (appSettings.availableModels || []).find(m => m.id === body.model);
+                        setHordeStatus(`${picked?.name || body.model} is offline on the AI Horde right now, so ${hordeShortName(answeredBy)} answered.`, 6000);
+                    } else {
+                        setHordeStatus('');
+                    }
+                }
+                const chunk = data => `data: ${JSON.stringify(data)}\n\n`;
+                controller.enqueue(new TextEncoder().encode(
+                    chunk({ model: answeredBy, choices: [{ index: 0, delta: { content: text } }] })
+                    + chunk({ model: answeredBy, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })
+                    + 'data: [DONE]\n\n'));
+                controller.close();
+            } catch (error) {
+                if (!quiet) setHordeStatus('');
+                controller.error(error);
+            } finally {
+                signal?.removeEventListener('abort', onAbort);
+            }
+        }
+    });
+    return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+// The one place chat requests leave the app. Horde models are translated;
+// everything else goes to its OpenAI-compatible provider as before.
+async function requestChatCompletion(url, init, { quiet = false } = {}) {
+    let body = null;
+    try {
+        body = JSON.parse(init.body);
+    } catch (_) {
+        // Not JSON, so not a Horde request.
+    }
+    if (!body || !isHordeModelId(body.model)) return fetch(url, init);
+    return hordeChatCompletion(body, init.signal, quiet);
 }
 
 function getContinuationInstruction(value) {
@@ -1362,6 +1774,7 @@ async function saveAppSettings() {
 
     const newSettings = {
         apiKey: document.getElementById('api-key-input').value.trim(),
+        hordeApiKey: document.getElementById('horde-api-key-input').value.trim(),
         availableModels: models
     };
 
@@ -1398,7 +1811,7 @@ async function loadAppSettingsFromDB() {
         appSettings = defaultSettings;
     }
 
-    if (isUntouchedRetiredModelList(appSettings.availableModels)) {
+    if (isUntouchedRetiredModelList(appSettings.availableModels) || isUntouchedShippedModelList(appSettings.availableModels)) {
         appSettings = { ...appSettings, availableModels: defaultSettings.availableModels };
         if (db) {
             const writeTransaction = db.transaction(['settings'], 'readwrite');
@@ -1407,6 +1820,7 @@ async function loadAppSettingsFromDB() {
     }
 
     document.getElementById('api-key-input').value = appSettings.apiKey || '';
+    document.getElementById('horde-api-key-input').value = appSettings.hordeApiKey || '';
     modelListContainer.innerHTML = '';
     if (appSettings.availableModels) {
         appSettings.availableModels.forEach(model => createModelEntry(model));
@@ -4277,7 +4691,7 @@ const fetchBody = JSON.stringify({
         top_p: 0.95
     }
 });
-const response = await fetch(fetchUrl, {
+const response = await requestChatCompletion(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
@@ -4496,8 +4910,8 @@ if (elapsedTime > 20000) {
         console.log('Request failed or rate-limited. Retrying...');
         await new Promise(resolve => setTimeout(resolve, 1000));
     } else {
-        let errorMsg = `An unexpected error occurred. Please try regenerating the response or start a new chat. If the problem persists, please check the FAQ.`;
-        if (error.message.includes('Failed to fetch')) {
+        let errorMsg = error.userMessage || `An unexpected error occurred. Please try regenerating the response or start a new chat. If the problem persists, please check the FAQ.`;
+        if (!error.userMessage && error.message.includes('Failed to fetch')) {
             errorMsg = "Could not connect to the AI provider. Please check your API key and internet connection, then try again.";
         }
         aiMessageObject.variations[0].main = errorMsg;
@@ -4818,7 +5232,7 @@ const fetchBody = JSON.stringify({
         top_p: 0.95
     }
 });
-const response = await fetch(fetchUrl, {
+const response = await requestChatCompletion(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
@@ -5045,7 +5459,8 @@ continue;
 • Try sending a message again later in case the model is overloaded. Also, use other AI models to see if the AI model itself was the problem.
 • In some cases your API provider might have a temporary problem. Try another provider/API key to see if your priveder was the problem.
 • Check the FAQ section (help button on main screen) for further details to this error.`;
-        if (error.message.includes('Failed to fetch')) {
+        if (error.userMessage) errorMsg = error.userMessage;
+        else if (error.message.includes('Failed to fetch')) {
             errorMsg = "Could not connect to the AI provider. Please check your API key and internet connection, then try again.";
         }
         if(mainContentEl) mainContentEl.innerHTML = errorMsg;
@@ -5392,7 +5807,7 @@ const fetchBody = JSON.stringify({
         top_p: 0.95
     }
 });
-const response = await fetch(fetchUrl, {
+const response = await requestChatCompletion(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
@@ -5614,7 +6029,8 @@ if (!finalThink) {
 • Try sending a message again later in case the model is overloaded. Also, use other AI models to see if the AI model itself was the problem.
 • In some cases your API provider might have a temporary problem. Try another provider/API key to see if your provider was the problem.
 • Check the FAQ section (help button on main screen) for further details to this error.`;
-        if (error.message.includes('Failed to fetch')) {
+        if (error.userMessage) errorMsg = error.userMessage;
+        else if (error.message.includes('Failed to fetch')) {
             errorMsg = "Could not connect to the AI provider. Please check your API key and internet connection, then try again.";
         }
         if(mainContentEl) {
@@ -9160,7 +9576,7 @@ personaEditorAvatarImg.onerror = () => {
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage }
         ];
-        const response = await fetch(targetApiUrlToSend, {
+        const response = await requestChatCompletion(targetApiUrlToSend, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -9173,7 +9589,7 @@ personaEditorAvatarImg.onerror = () => {
                 ...getReasoningRequestConfig(targetApiUrlToSend, reasoningEffort)
             }),
             ...(signal ? { signal } : {})
-        });
+        }, { quiet: true });
         if (!response.ok) throw new Error(await response.text());
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

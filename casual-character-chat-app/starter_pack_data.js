@@ -8860,113 +8860,71 @@ const STARTER_PACK_DATA = {
   "appSettings": {
     "availableModels": [
       {
-        "name": "Openrouter: Free (random free model)",
-        "id": "openrouter/free",
+        "name": "Any Uncensored Model (fastest)",
+        "id": "horde:any",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "NVIDIA: Nemotron 3 Ultra (free)",
-        "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "name": "Behemoth-X 123B",
+        "id": "horde:behemoth-x",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Thinking Machines: Inkling (free)",
-        "id": "thinkingmachines/inkling:free",
+        "name": "Skyfall 31B",
+        "id": "horde:skyfall",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "NVIDIA: Nemotron 3 Super (free)",
-        "id": "nvidia/nemotron-3-super-120b-a12b:free",
+        "name": "Magidonia 24B",
+        "id": "horde:magidonia",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Thinking Machines: Inkling Small (free)",
-        "id": "thinkingmachines/inkling-small:free",
+        "name": "Rocinante X 12B",
+        "id": "horde:rocinante",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Dots Studio: Dots3-Note Preview (free)",
-        "id": "dots-studio/dots-3-note-preview:free",
+        "name": "Mini Magnum 12B",
+        "id": "horde:magnum",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Qwen: Qwen3.8 27B (free)",
-        "id": "qwen/qwen3.8-27b:free",
+        "name": "Stheno 8B",
+        "id": "horde:stheno",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Google: Gemma 4 31B (free)",
-        "id": "google/gemma-4-31b-it:free",
+        "name": "Gemma 4 31B Heretic",
+        "id": "horde:gemma-4-31b+heretic",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "Google: Gemma 4 26B A4B (free)",
-        "id": "google/gemma-4-26b-a4b-it:free",
+        "name": "Gemma 4 E4B Uncensored",
+        "id": "horde:gemma-4-e4b+uncensored",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
       },
       {
-        "name": "NVIDIA: Nemotron 3.5 Lightning (free)",
-        "id": "nvidia/nemotron-3.5-lightning:free",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "Mistral: Mistral Nemo ~$0,000049/message",
-        "id": "mistralai/mistral-nemo",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "Sao10K: Llama 3 8B Lunaris ~$0,00009/message",
-        "id": "sao10k/l3-lunaris-8b",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "DeepSeek V4 Flash 0731 ~$0.00009/message",
-        "id": "deepseek/deepseek-v4-flash-0731",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "Qwen: Qwen3.7 Flash ~$0,00016/message",
-        "id": "qwen/qwen3.7-flash",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "Google: Gemma 4 31B ~$0,00043/message",
-        "id": "google/gemma-4-31b-it",
-        "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
-        "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
-        "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
-      },
-      {
-        "name": "Z.ai: GLM 4.7 Flash ~$0,00046/message",
-        "id": "z-ai/glm-4.7-flash",
+        "name": "Impish Llama 4B",
+        "id": "horde:impish",
         "instructions": "- Drive the plot forward in a slow, organic pace.\n- Focus on action and show what's happening.\n- Refer to {{char}} in third person by name or as he/she/they — NEVER as \"I\" or \"me\".\n- Describe violent or dark scenes authentically and in detail.\n- Enclose all dialog in double quotation marks; never use asterisks.",
         "reminder": "- Contain substantial dialog from {{char}} only — no other character may speak.\n- Include multiple narration lines alongside the dialog.\n- Avoid any purple prose or flowery language.\n- Be direct and objective in your narration.\n- Prefer short sentences over long comma sentences.\n- Do not start with \"{{char}}:\" or any name-colon format.\n- Write one or two paragraphs in total; maximum three paragraphs.",
         "narratorReminder": "- Do not contain any dialog of {{char}} or {{user}}.\n- Do not describe {{user}}'s actions.\n- Drive the scene forward in a thrilling tone.\n- Avoid any purple prose or flowery language.\n- Be direct and objective.\n- Prefer short sentences over long comma sentences.\n- Write one or two paragraphs in total; maximum three paragraphs."
