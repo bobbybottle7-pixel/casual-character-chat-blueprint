@@ -1,0 +1,38 @@
+{
+  "name": "Casual Character Chat",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ritwickdey.LiveServer",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ecmel.vscode-html-css",
+        "yzhang.markdown-all-in-one"
+      ],
+      "settings": {
+        "editor.formatOnSave": false,
+        "liveServer.settings.root": "/casual-character-chat-app",
+        "liveServer.settings.port": 5500,
+        "liveServer.settings.NoBrowser": true
+      }
+    }
+  },
+
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Chat app",
+      "onAutoForward": "openPreview"
+    },
+    "5500": {
+      "label": "Live Server"
+    }
+  },
+
+  "postCreateCommand": "node build/build-standalone.js --check || echo 'standalone-app.html is out of date: run node build/build-standalone.js'",
+  "postAttachCommand": {
+    "server": "npx --yes http-server casual-character-chat-app -p 8080 -c-1 --silent"
+  }
+}
