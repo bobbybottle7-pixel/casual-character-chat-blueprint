@@ -8027,3 +8027,61 @@ body.image-gen-off .generate-image-btn {
         font-size: 14px;
     }
 }
+
+/* ===================== WEB SEARCH (Brave) ===================== */
+#chat-form #web-search-toggle-btn {
+    flex-shrink: 0;
+    width: 40px;
+    padding-left: 0;
+    padding-right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    filter: grayscale(0.8);
+    transition: opacity 0.2s, filter 0.2s, box-shadow 0.25s, border-color 0.25s;
+}
+
+#chat-form #web-search-toggle-btn.is-active {
+    opacity: 1;
+    filter: none;
+    border-color: rgba(90, 200, 255, 0.75);
+    box-shadow: 0 0 0 1px rgba(90, 200, 255, 0.35), 0 0 14px rgba(90, 200, 255, 0.45), inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+#chat-form #web-search-toggle-btn.has-error {
+    opacity: 1;
+    filter: none;
+    border-color: rgba(255, 90, 90, 0.85);
+    box-shadow: 0 0 12px rgba(255, 90, 90, 0.45);
+}
+
+.web-search-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.web-search-settings .settings-hint {
+    font-size: 12px;
+    line-height: 1.45;
+    opacity: 0.75;
+    margin: 0 0 4px;
+}
+
+.web-search-settings code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.web-search-settings #brave-test-btn {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 7px 14px;
+}
+
+#brave-test-status {
+    min-height: 1em;
+    word-break: break-word;
+}

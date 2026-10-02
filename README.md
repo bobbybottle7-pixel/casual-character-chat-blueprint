@@ -12,6 +12,10 @@ Create your own AI characters, start role-playing chats, and keep full control o
 2. **Open the app** — On **desktop**: double-click `index.html`. On **mobile**: open the **standalone HTML file** instead (or use a live server app), as smartphones block linked CSS/scripts when opening HTML files directly.
 3. **Add your API key** — In the app, go to **⚙️ Global App Settings** and paste your API key from a provider - e.g., [OpenRouter](https://openrouter.ai). Done!
 
+### 🌐 Web Search (Brave)
+
+Optional live web search: tap 🌐 next to the message box and each message is searched on Brave first, with the results given to the AI. Setup takes two minutes; see [`brave-proxy/README.md`](brave-proxy/README.md).
+
 ---
 
 ### ✨ Gallery

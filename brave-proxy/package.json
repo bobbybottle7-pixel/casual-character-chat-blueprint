@@ -1,0 +1,9 @@
+{
+  "name": "brave-search-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "deploy": "npx wrangler deploy"
+  }
+}

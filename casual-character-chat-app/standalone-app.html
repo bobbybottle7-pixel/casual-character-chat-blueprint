@@ -8053,6 +8053,64 @@ body.image-gen-off .generate-image-btn {
     }
 }
 
+/* ===================== WEB SEARCH (Brave) ===================== */
+#chat-form #web-search-toggle-btn {
+    flex-shrink: 0;
+    width: 40px;
+    padding-left: 0;
+    padding-right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    filter: grayscale(0.8);
+    transition: opacity 0.2s, filter 0.2s, box-shadow 0.25s, border-color 0.25s;
+}
+
+#chat-form #web-search-toggle-btn.is-active {
+    opacity: 1;
+    filter: none;
+    border-color: rgba(90, 200, 255, 0.75);
+    box-shadow: 0 0 0 1px rgba(90, 200, 255, 0.35), 0 0 14px rgba(90, 200, 255, 0.45), inset 0 1px 0 rgba(255,255,255,0.16);
+}
+
+#chat-form #web-search-toggle-btn.has-error {
+    opacity: 1;
+    filter: none;
+    border-color: rgba(255, 90, 90, 0.85);
+    box-shadow: 0 0 12px rgba(255, 90, 90, 0.45);
+}
+
+.web-search-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.web-search-settings .settings-hint {
+    font-size: 12px;
+    line-height: 1.45;
+    opacity: 0.75;
+    margin: 0 0 4px;
+}
+
+.web-search-settings code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.web-search-settings #brave-test-btn {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 7px 14px;
+}
+
+#brave-test-status {
+    min-height: 1em;
+    word-break: break-word;
+}
+
 /* =========================================================================
  * STANDALONE-ONLY STYLES
  * =========================================================================
@@ -8644,6 +8702,7 @@ mark.highlight.current-match {
         <textarea id="message-input" placeholder="Write a message..." rows="1"></textarea>
         <button type="button" id="stop-stream-btn" class="hidden" title="Stop Generation"><span class="stop-square"></span></button>
     </div>
+    <button type="button" id="web-search-toggle-btn" aria-pressed="false" title="Web search (Brave): off"><span class="btn-icon" aria-hidden="true">🌐</span></button>
     <button type="submit" id="dialog-btn"><span class="btn-icon" aria-hidden="true">💬</span><span class="btn-text">Character</span></button>
     <button type="button" id="story-btn"><span class="btn-icon" aria-hidden="true">📖</span><span class="btn-text">Narrator</span></button>
     </form>
@@ -8993,6 +9052,27 @@ mark.highlight.current-match {
 <div class="settings-input-group">
     <label for="api-key-input">Default API Key (OpenRouter):</label>
     <input type="password" id="api-key-input" class="settings-input" placeholder="sk-or-...">
+</div>
+
+            <hr class="settings-separator">
+
+<div class="settings-input-group web-search-settings">
+    <label>🌐 Web Search (Brave):</label>
+    <p class="settings-hint">When the 🌐 button in the chat bar is on, your message is searched on Brave first and the results are handed to the AI with the reply request. Brave blocks direct browser calls, so a small proxy is needed — see <code>brave-proxy/</code> in the repo.</p>
+    <label for="brave-api-key-input">Brave Search API Key:</label>
+    <input type="password" id="brave-api-key-input" class="settings-input" placeholder="BSA...">
+    <label for="brave-proxy-url-input">Search Proxy URL:</label>
+    <input type="url" id="brave-proxy-url-input" class="settings-input" placeholder="http://localhost:8787 or https://brave-search-proxy.you.workers.dev">
+    <label for="brave-safesearch-select">Safe Search:</label>
+    <select id="brave-safesearch-select" class="settings-input">
+        <option value="off">Off (unfiltered)</option>
+        <option value="moderate">Moderate</option>
+        <option value="strict">Strict</option>
+    </select>
+    <label for="brave-result-count-input">Results per search (1–20):</label>
+    <input type="number" id="brave-result-count-input" class="settings-input" min="1" max="20" value="5">
+    <button type="button" id="brave-test-btn" class="settings-action-btn">Test Web Search</button>
+    <span id="brave-test-status" class="settings-hint"></span>
 </div>
 
 
@@ -19356,9 +19436,15 @@ async function saveAppSettings() {
         }
     });
 
+    const braveCount = parseInt(document.getElementById('brave-result-count-input').value, 10);
     const newSettings = {
         apiKey: document.getElementById('api-key-input').value.trim(),
-        availableModels: models
+        availableModels: models,
+        braveApiKey: document.getElementById('brave-api-key-input').value.trim(),
+        braveProxyUrl: document.getElementById('brave-proxy-url-input').value.trim(),
+        braveSafeSearch: document.getElementById('brave-safesearch-select').value,
+        braveResultCount: Number.isFinite(braveCount) ? Math.min(20, Math.max(1, braveCount)) : 5,
+        webSearchEnabled: !!appSettings.webSearchEnabled
     };
 
     if (db) {
@@ -19403,6 +19489,7 @@ async function loadAppSettingsFromDB() {
     }
 
     document.getElementById('api-key-input').value = appSettings.apiKey || '';
+    fillWebSearchSettingsForm();
     modelListContainer.innerHTML = '';
     if (appSettings.availableModels) {
         appSettings.availableModels.forEach(model => createModelEntry(model));
@@ -19423,6 +19510,117 @@ async function resetAppSettings() {
     }));
     await saveAppSettings();
   }
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Web search (Brave)
+//
+// Brave answers the CORS preflight for its X-Subscription-Token header with a
+// 405, so the browser cannot call it directly. Requests go through the small
+// proxy in brave-proxy/ (Cloudflare Worker or local Node server), which adds
+// the key and the CORS headers.
+// ---------------------------------------------------------------------------
+const BRAVE_SAFESEARCH_VALUES = new Set(['off', 'moderate', 'strict']);
+
+function fillWebSearchSettingsForm() {
+    document.getElementById('brave-api-key-input').value = appSettings.braveApiKey || '';
+    document.getElementById('brave-proxy-url-input').value = appSettings.braveProxyUrl || '';
+    document.getElementById('brave-safesearch-select').value =
+        BRAVE_SAFESEARCH_VALUES.has(appSettings.braveSafeSearch) ? appSettings.braveSafeSearch : 'off';
+    document.getElementById('brave-result-count-input').value = appSettings.braveResultCount || 5;
+    document.getElementById('brave-test-status').textContent = '';
+    updateWebSearchToggleButton();
+}
+
+function updateWebSearchToggleButton() {
+    const btn = document.getElementById('web-search-toggle-btn');
+    if (!btn) return;
+    const on = !!appSettings.webSearchEnabled;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Web search (Brave): on' : 'Web search (Brave): off';
+}
+
+async function setWebSearchEnabled(enabled) {
+    appSettings = { ...appSettings, webSearchEnabled: !!enabled };
+    updateWebSearchToggleButton();
+    if (db) {
+        const transaction = db.transaction(['settings'], 'readwrite');
+        transaction.objectStore('settings').put({ key: 'appSettings', value: appSettings });
+    }
+}
+
+const stripHtmlTags = (text) => String(text || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+
+// Returns [{ title, url, description, age }] or throws with a readable message.
+async function fetchBraveResults(query, settings = appSettings, signal) {
+    const proxy = (settings.braveProxyUrl || '').trim().replace(/\/+$/, '');
+    if (!proxy) throw new Error('Set a Search Proxy URL in Global App Settings.');
+    const params = new URLSearchParams({
+        q: query.slice(0, 400),
+        count: String(settings.braveResultCount || 5),
+        safesearch: BRAVE_SAFESEARCH_VALUES.has(settings.braveSafeSearch) ? settings.braveSafeSearch : 'off'
+    });
+    const headers = settings.braveApiKey ? { 'X-Brave-Key': settings.braveApiKey } : {};
+    const endpoint = /\/search$/.test(proxy) ? proxy : `${proxy}/search`;
+    const response = await fetch(`${endpoint}?${params}`, { headers, signal });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const detail = data?.error?.detail || data?.error?.code || data?.error || `HTTP ${response.status}`;
+        throw new Error(`Brave search failed: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+    }
+    const results = [
+        ...(data.web?.results || []),
+        ...(data.news?.results || []).slice(0, 2)
+    ];
+    return results.map(r => ({
+        title: stripHtmlTags(r.title),
+        url: r.url,
+        description: stripHtmlTags([r.description, ...(r.extra_snippets || []).slice(0, 2)].filter(Boolean).join(' ')),
+        age: r.age || r.page_age || ''
+    })).filter(r => r.url);
+}
+
+// System-prompt block with fresh results for `query`, or '' when web search
+// is off, unconfigured, or failed. A failed search never blocks the reply.
+async function buildWebSearchContext(query, signal) {
+    if (!appSettings.webSearchEnabled) return '';
+    const cleanQuery = String(query || '').replace(/\s+/g, ' ').trim();
+    if (!cleanQuery) return '';
+    try {
+        const results = await fetchBraveResults(cleanQuery, appSettings, signal);
+        if (results.length === 0) return '';
+        const lines = results.map((r, i) =>
+            `[${i + 1}] ${r.title}${r.age ? ` (${r.age})` : ''}\n${r.url}\n${r.description}`
+        ).join('\n\n');
+        const today = new Date().toISOString().slice(0, 10);
+        return `--- LIVE WEB SEARCH RESULTS (Brave, ${today}) for "${cleanQuery.slice(0, 200)}" ---\n` +
+            `Use these when the latest message asks about real-world facts, news or anything current. ` +
+            `Prefer them over older knowledge, stay in character, and mention the source naturally when you rely on one.\n\n` +
+            `${lines}\n\n`;
+    } catch (err) {
+        if (err?.name === 'AbortError') throw err;
+        console.warn('Web search skipped:', err);
+        showWebSearchNotice(err.message || String(err));
+        return '';
+    }
+}
+
+function showWebSearchNotice(text) {
+    const btn = document.getElementById('web-search-toggle-btn');
+    if (!btn) return;
+    btn.classList.add('has-error');
+    btn.title = `Web search failed: ${text}`;
+    setTimeout(() => { btn.classList.remove('has-error'); updateWebSearchToggleButton(); }, 6000);
 }
 
 
@@ -22213,6 +22411,14 @@ const startTime = Date.now();
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
     }
+    if (finalUserMessage && appSettings.webSearchEnabled) {
+        const pending = chat.history.find(m => m.id === newMessageId);
+        if (pending) { pending.variations[0].main = '🌐 Searching the web…'; updateSingleMessageView(newMessageId); }
+        try {
+            fullSystemPrompt += await buildWebSearchContext(finalUserMessage, currentStreamController?.signal);
+        } catch (err) { /* aborted by the user; the stop handler cleans up */ }
+        if (pending && pending.variations[0].main === '🌐 Searching the web…') { pending.variations[0].main = '...'; updateSingleMessageView(newMessageId); }
+    }
     fullSystemPrompt += getReplyLengthInstruction(replyLength);
     const isMultiSpeakerScene = !!(chat.participants && chat.participants.length > 1);
     const needsSpeakerExclusivity = type === 'dialog' && isMultiSpeakerScene;
@@ -22735,6 +22941,15 @@ let characterNarratorReminder = applyUserPlaceholder((speakerCharacter.narratorR
     const chatMemoriesText = getChatMemories(chat);
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
+    }
+    if (userMessageForAPI && appSettings.webSearchEnabled) {
+        const searchVariant = message.variations[message.activeVariant];
+        searchVariant.main = '🌐 Searching the web…';
+        updateSingleMessageView(messageId);
+        try {
+            fullSystemPrompt += await buildWebSearchContext(userMessageForAPI);
+        } catch (err) { /* aborted */ }
+        if (searchVariant.main === '🌐 Searching the web…') { searchVariant.main = '...'; updateSingleMessageView(messageId); }
     }
     fullSystemPrompt += getReplyLengthInstruction(replyLength);
     const needsSpeakerExclusivity = messageType === 'dialog' && isMultiChar;
@@ -28675,6 +28890,40 @@ document.getElementById('tag-search-input').addEventListener('input', () => {
 appSettingsBtn.addEventListener('click', () => {
     loadAppSettingsFromDB();
     appSettingsModal.classList.remove('hidden');
+});
+
+document.getElementById('web-search-toggle-btn')?.addEventListener('click', async () => {
+    const turningOn = !appSettings.webSearchEnabled;
+    if (turningOn && !(appSettings.braveProxyUrl || '').trim()) {
+        await loadAppSettingsFromDB();
+        appSettingsModal.classList.remove('hidden');
+        document.getElementById('brave-proxy-url-input').focus();
+        return;
+    }
+    await setWebSearchEnabled(turningOn);
+});
+
+document.getElementById('brave-test-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('brave-test-status');
+    const btn = document.getElementById('brave-test-btn');
+    const draft = {
+        braveApiKey: document.getElementById('brave-api-key-input').value.trim(),
+        braveProxyUrl: document.getElementById('brave-proxy-url-input').value.trim(),
+        braveSafeSearch: document.getElementById('brave-safesearch-select').value,
+        braveResultCount: 3
+    };
+    btn.disabled = true;
+    status.textContent = 'Searching…';
+    try {
+        const results = await fetchBraveResults('latest news today', draft);
+        status.textContent = results.length
+            ? `✅ Works — ${results.length} results, e.g. "${results[0].title}"`
+            : '⚠️ Connected, but no results came back.';
+    } catch (err) {
+        status.textContent = `❌ ${err.message || err}`;
+    } finally {
+        btn.disabled = false;
+    }
 });
 
 appSettingsForm.addEventListener('submit', async (event) => {

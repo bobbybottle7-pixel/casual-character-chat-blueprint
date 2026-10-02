@@ -1360,9 +1360,15 @@ async function saveAppSettings() {
         }
     });
 
+    const braveCount = parseInt(document.getElementById('brave-result-count-input').value, 10);
     const newSettings = {
         apiKey: document.getElementById('api-key-input').value.trim(),
-        availableModels: models
+        availableModels: models,
+        braveApiKey: document.getElementById('brave-api-key-input').value.trim(),
+        braveProxyUrl: document.getElementById('brave-proxy-url-input').value.trim(),
+        braveSafeSearch: document.getElementById('brave-safesearch-select').value,
+        braveResultCount: Number.isFinite(braveCount) ? Math.min(20, Math.max(1, braveCount)) : 5,
+        webSearchEnabled: !!appSettings.webSearchEnabled
     };
 
     if (db) {
@@ -1407,6 +1413,7 @@ async function loadAppSettingsFromDB() {
     }
 
     document.getElementById('api-key-input').value = appSettings.apiKey || '';
+    fillWebSearchSettingsForm();
     modelListContainer.innerHTML = '';
     if (appSettings.availableModels) {
         appSettings.availableModels.forEach(model => createModelEntry(model));
@@ -1427,6 +1434,117 @@ async function resetAppSettings() {
     }));
     await saveAppSettings();
   }
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Web search (Brave)
+//
+// Brave answers the CORS preflight for its X-Subscription-Token header with a
+// 405, so the browser cannot call it directly. Requests go through the small
+// proxy in brave-proxy/ (Cloudflare Worker or local Node server), which adds
+// the key and the CORS headers.
+// ---------------------------------------------------------------------------
+const BRAVE_SAFESEARCH_VALUES = new Set(['off', 'moderate', 'strict']);
+
+function fillWebSearchSettingsForm() {
+    document.getElementById('brave-api-key-input').value = appSettings.braveApiKey || '';
+    document.getElementById('brave-proxy-url-input').value = appSettings.braveProxyUrl || '';
+    document.getElementById('brave-safesearch-select').value =
+        BRAVE_SAFESEARCH_VALUES.has(appSettings.braveSafeSearch) ? appSettings.braveSafeSearch : 'off';
+    document.getElementById('brave-result-count-input').value = appSettings.braveResultCount || 5;
+    document.getElementById('brave-test-status').textContent = '';
+    updateWebSearchToggleButton();
+}
+
+function updateWebSearchToggleButton() {
+    const btn = document.getElementById('web-search-toggle-btn');
+    if (!btn) return;
+    const on = !!appSettings.webSearchEnabled;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.title = on ? 'Web search (Brave): on' : 'Web search (Brave): off';
+}
+
+async function setWebSearchEnabled(enabled) {
+    appSettings = { ...appSettings, webSearchEnabled: !!enabled };
+    updateWebSearchToggleButton();
+    if (db) {
+        const transaction = db.transaction(['settings'], 'readwrite');
+        transaction.objectStore('settings').put({ key: 'appSettings', value: appSettings });
+    }
+}
+
+const stripHtmlTags = (text) => String(text || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&#x27;|&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+
+// Returns [{ title, url, description, age }] or throws with a readable message.
+async function fetchBraveResults(query, settings = appSettings, signal) {
+    const proxy = (settings.braveProxyUrl || '').trim().replace(/\/+$/, '');
+    if (!proxy) throw new Error('Set a Search Proxy URL in Global App Settings.');
+    const params = new URLSearchParams({
+        q: query.slice(0, 400),
+        count: String(settings.braveResultCount || 5),
+        safesearch: BRAVE_SAFESEARCH_VALUES.has(settings.braveSafeSearch) ? settings.braveSafeSearch : 'off'
+    });
+    const headers = settings.braveApiKey ? { 'X-Brave-Key': settings.braveApiKey } : {};
+    const endpoint = /\/search$/.test(proxy) ? proxy : `${proxy}/search`;
+    const response = await fetch(`${endpoint}?${params}`, { headers, signal });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const detail = data?.error?.detail || data?.error?.code || data?.error || `HTTP ${response.status}`;
+        throw new Error(`Brave search failed: ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+    }
+    const results = [
+        ...(data.web?.results || []),
+        ...(data.news?.results || []).slice(0, 2)
+    ];
+    return results.map(r => ({
+        title: stripHtmlTags(r.title),
+        url: r.url,
+        description: stripHtmlTags([r.description, ...(r.extra_snippets || []).slice(0, 2)].filter(Boolean).join(' ')),
+        age: r.age || r.page_age || ''
+    })).filter(r => r.url);
+}
+
+// System-prompt block with fresh results for `query`, or '' when web search
+// is off, unconfigured, or failed. A failed search never blocks the reply.
+async function buildWebSearchContext(query, signal) {
+    if (!appSettings.webSearchEnabled) return '';
+    const cleanQuery = String(query || '').replace(/\s+/g, ' ').trim();
+    if (!cleanQuery) return '';
+    try {
+        const results = await fetchBraveResults(cleanQuery, appSettings, signal);
+        if (results.length === 0) return '';
+        const lines = results.map((r, i) =>
+            `[${i + 1}] ${r.title}${r.age ? ` (${r.age})` : ''}\n${r.url}\n${r.description}`
+        ).join('\n\n');
+        const today = new Date().toISOString().slice(0, 10);
+        return `--- LIVE WEB SEARCH RESULTS (Brave, ${today}) for "${cleanQuery.slice(0, 200)}" ---\n` +
+            `Use these when the latest message asks about real-world facts, news or anything current. ` +
+            `Prefer them over older knowledge, stay in character, and mention the source naturally when you rely on one.\n\n` +
+            `${lines}\n\n`;
+    } catch (err) {
+        if (err?.name === 'AbortError') throw err;
+        console.warn('Web search skipped:', err);
+        showWebSearchNotice(err.message || String(err));
+        return '';
+    }
+}
+
+function showWebSearchNotice(text) {
+    const btn = document.getElementById('web-search-toggle-btn');
+    if (!btn) return;
+    btn.classList.add('has-error');
+    btn.title = `Web search failed: ${text}`;
+    setTimeout(() => { btn.classList.remove('has-error'); updateWebSearchToggleButton(); }, 6000);
 }
 
 
@@ -4217,6 +4335,14 @@ const startTime = Date.now();
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
     }
+    if (finalUserMessage && appSettings.webSearchEnabled) {
+        const pending = chat.history.find(m => m.id === newMessageId);
+        if (pending) { pending.variations[0].main = '🌐 Searching the web…'; updateSingleMessageView(newMessageId); }
+        try {
+            fullSystemPrompt += await buildWebSearchContext(finalUserMessage, currentStreamController?.signal);
+        } catch (err) { /* aborted by the user; the stop handler cleans up */ }
+        if (pending && pending.variations[0].main === '🌐 Searching the web…') { pending.variations[0].main = '...'; updateSingleMessageView(newMessageId); }
+    }
     fullSystemPrompt += getReplyLengthInstruction(replyLength);
     const isMultiSpeakerScene = !!(chat.participants && chat.participants.length > 1);
     const needsSpeakerExclusivity = type === 'dialog' && isMultiSpeakerScene;
@@ -4739,6 +4865,15 @@ let characterNarratorReminder = applyUserPlaceholder((speakerCharacter.narratorR
     const chatMemoriesText = getChatMemories(chat);
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
+    }
+    if (userMessageForAPI && appSettings.webSearchEnabled) {
+        const searchVariant = message.variations[message.activeVariant];
+        searchVariant.main = '🌐 Searching the web…';
+        updateSingleMessageView(messageId);
+        try {
+            fullSystemPrompt += await buildWebSearchContext(userMessageForAPI);
+        } catch (err) { /* aborted */ }
+        if (searchVariant.main === '🌐 Searching the web…') { searchVariant.main = '...'; updateSingleMessageView(messageId); }
     }
     fullSystemPrompt += getReplyLengthInstruction(replyLength);
     const needsSpeakerExclusivity = messageType === 'dialog' && isMultiChar;
@@ -10679,6 +10814,40 @@ document.getElementById('tag-search-input').addEventListener('input', () => {
 appSettingsBtn.addEventListener('click', () => {
     loadAppSettingsFromDB();
     appSettingsModal.classList.remove('hidden');
+});
+
+document.getElementById('web-search-toggle-btn')?.addEventListener('click', async () => {
+    const turningOn = !appSettings.webSearchEnabled;
+    if (turningOn && !(appSettings.braveProxyUrl || '').trim()) {
+        await loadAppSettingsFromDB();
+        appSettingsModal.classList.remove('hidden');
+        document.getElementById('brave-proxy-url-input').focus();
+        return;
+    }
+    await setWebSearchEnabled(turningOn);
+});
+
+document.getElementById('brave-test-btn')?.addEventListener('click', async () => {
+    const status = document.getElementById('brave-test-status');
+    const btn = document.getElementById('brave-test-btn');
+    const draft = {
+        braveApiKey: document.getElementById('brave-api-key-input').value.trim(),
+        braveProxyUrl: document.getElementById('brave-proxy-url-input').value.trim(),
+        braveSafeSearch: document.getElementById('brave-safesearch-select').value,
+        braveResultCount: 3
+    };
+    btn.disabled = true;
+    status.textContent = 'Searching…';
+    try {
+        const results = await fetchBraveResults('latest news today', draft);
+        status.textContent = results.length
+            ? `✅ Works — ${results.length} results, e.g. "${results[0].title}"`
+            : '⚠️ Connected, but no results came back.';
+    } catch (err) {
+        status.textContent = `❌ ${err.message || err}`;
+    } finally {
+        btn.disabled = false;
+    }
 });
 
 appSettingsForm.addEventListener('submit', async (event) => {

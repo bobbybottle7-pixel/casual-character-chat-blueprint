@@ -369,6 +369,7 @@
         <textarea id="message-input" placeholder="Write a message..." rows="1"></textarea>
         <button type="button" id="stop-stream-btn" class="hidden" title="Stop Generation"><span class="stop-square"></span></button>
     </div>
+    <button type="button" id="web-search-toggle-btn" aria-pressed="false" title="Web search (Brave): off"><span class="btn-icon" aria-hidden="true">🌐</span></button>
     <button type="submit" id="dialog-btn"><span class="btn-icon" aria-hidden="true">💬</span><span class="btn-text">Character</span></button>
     <button type="button" id="story-btn"><span class="btn-icon" aria-hidden="true">📖</span><span class="btn-text">Narrator</span></button>
     </form>
@@ -718,6 +719,27 @@
 <div class="settings-input-group">
     <label for="api-key-input">Default API Key (OpenRouter):</label>
     <input type="password" id="api-key-input" class="settings-input" placeholder="sk-or-...">
+</div>
+
+            <hr class="settings-separator">
+
+<div class="settings-input-group web-search-settings">
+    <label>🌐 Web Search (Brave):</label>
+    <p class="settings-hint">When the 🌐 button in the chat bar is on, your message is searched on Brave first and the results are handed to the AI with the reply request. Brave blocks direct browser calls, so a small proxy is needed — see <code>brave-proxy/</code> in the repo.</p>
+    <label for="brave-api-key-input">Brave Search API Key:</label>
+    <input type="password" id="brave-api-key-input" class="settings-input" placeholder="BSA...">
+    <label for="brave-proxy-url-input">Search Proxy URL:</label>
+    <input type="url" id="brave-proxy-url-input" class="settings-input" placeholder="http://localhost:8787 or https://brave-search-proxy.you.workers.dev">
+    <label for="brave-safesearch-select">Safe Search:</label>
+    <select id="brave-safesearch-select" class="settings-input">
+        <option value="off">Off (unfiltered)</option>
+        <option value="moderate">Moderate</option>
+        <option value="strict">Strict</option>
+    </select>
+    <label for="brave-result-count-input">Results per search (1–20):</label>
+    <input type="number" id="brave-result-count-input" class="settings-input" min="1" max="20" value="5">
+    <button type="button" id="brave-test-btn" class="settings-action-btn">Test Web Search</button>
+    <span id="brave-test-status" class="settings-hint"></span>
 </div>
 
 
