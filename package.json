@@ -1,0 +1,9 @@
+{
+  "name": "casual-character-chat",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs",
+    "build:standalone": "node build/build-standalone.js"
+  },
+  "engines": { "node": ">=18" }
+}

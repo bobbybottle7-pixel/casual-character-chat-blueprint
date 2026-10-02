@@ -169,13 +169,28 @@ const STARTER_PACK_MODELS = (() => {
 
 // Preselected in chat settings, and the fallback whenever the selector is
 // holding an id that the model list no longer contains.
-const DEFAULT_MODEL_ID = "openrouter/free";
+// When the page is served by server.js, it sets window.CCC_SERVER and offers
+// a free model and web search through its own /api routes, so nothing needs
+// a key or any setup.
+const APP_SERVER = (typeof window !== 'undefined' && window.CCC_SERVER) || null;
+const SERVER_MODEL_ID = "server/free";
+const DEFAULT_MODEL_ID = APP_SERVER?.chat ? SERVER_MODEL_ID : "openrouter/free";
 
 // Only reached when starter_pack_data.js is missing, which is why it is one
 // usable model rather than a second copy of the pack.
-const availableModels = STARTER_PACK_MODELS.length > 0
-    ? STARTER_PACK_MODELS
-    : [{ id: DEFAULT_MODEL_ID, name: "Openrouter: Free (random free model)" }];
+const availableModels = (() => {
+    const list = STARTER_PACK_MODELS.length > 0
+        ? STARTER_PACK_MODELS
+        : [{ id: "openrouter/free", name: "Openrouter: Free (random free model)" }];
+    if (!APP_SERVER?.chat) return list;
+    const template = list[0] || {};
+    return [{
+        ...template,
+        id: SERVER_MODEL_ID,
+        name: APP_SERVER.chatLabel || "Free AI (no key needed)",
+        targetApiUrl: "/api/chat"
+    }, ...list];
+})();
 
 // Installs made before the model list was taken from the starter pack hold a
 // single entry for the retired GLM 4.5 Air default. This id exists only so that
@@ -1368,7 +1383,7 @@ async function saveAppSettings() {
         braveProxyUrl: document.getElementById('brave-proxy-url-input').value.trim(),
         braveSafeSearch: document.getElementById('brave-safesearch-select').value,
         braveResultCount: Number.isFinite(braveCount) ? Math.min(20, Math.max(1, braveCount)) : 5,
-        webSearchEnabled: !!appSettings.webSearchEnabled
+        webSearchEnabled: isWebSearchEnabled()
     };
 
     if (db) {
@@ -1412,6 +1427,16 @@ async function loadAppSettingsFromDB() {
         }
     }
 
+    // The starter-pack import saves a model list without the server's free
+    // model, so put it back on top whenever the page runs on server.mjs.
+    if (APP_SERVER?.chat && !(appSettings.availableModels || []).some(m => m.id === SERVER_MODEL_ID)) {
+        appSettings = { ...appSettings, availableModels: [availableModels[0], ...(appSettings.availableModels || [])] };
+        if (db) {
+            const writeTransaction = db.transaction(['settings'], 'readwrite');
+            writeTransaction.objectStore('settings').put({ key: 'appSettings', value: appSettings });
+        }
+    }
+
     document.getElementById('api-key-input').value = appSettings.apiKey || '';
     fillWebSearchSettingsForm();
     modelListContainer.innerHTML = '';
@@ -1448,9 +1473,22 @@ async function resetAppSettings() {
 // ---------------------------------------------------------------------------
 const BRAVE_SAFESEARCH_VALUES = new Set(['off', 'moderate', 'strict']);
 
+function getBraveProxyUrl(settings = appSettings) {
+    const configured = (settings.braveProxyUrl || '').trim().replace(/\/+$/, '');
+    return configured || (APP_SERVER?.brave ? '/api/brave' : '');
+}
+
+function isWebSearchEnabled() {
+    return appSettings.webSearchEnabled ?? !!APP_SERVER?.brave;
+}
+
 function fillWebSearchSettingsForm() {
     document.getElementById('brave-api-key-input').value = appSettings.braveApiKey || '';
     document.getElementById('brave-proxy-url-input').value = appSettings.braveProxyUrl || '';
+    if (APP_SERVER?.brave) {
+        document.getElementById('brave-api-key-input').placeholder = 'Built in — leave empty';
+        document.getElementById('brave-proxy-url-input').placeholder = 'Built in — leave empty';
+    }
     document.getElementById('brave-safesearch-select').value =
         BRAVE_SAFESEARCH_VALUES.has(appSettings.braveSafeSearch) ? appSettings.braveSafeSearch : 'off';
     document.getElementById('brave-result-count-input').value = appSettings.braveResultCount || 5;
@@ -1461,7 +1499,7 @@ function fillWebSearchSettingsForm() {
 function updateWebSearchToggleButton() {
     const btn = document.getElementById('web-search-toggle-btn');
     if (!btn) return;
-    const on = !!appSettings.webSearchEnabled;
+    const on = isWebSearchEnabled();
     btn.classList.toggle('is-active', on);
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.title = on ? 'Web search (Brave): on' : 'Web search (Brave): off';
@@ -1487,7 +1525,7 @@ const stripHtmlTags = (text) => String(text || '')
 
 // Returns [{ title, url, description, age }] or throws with a readable message.
 async function fetchBraveResults(query, settings = appSettings, signal) {
-    const proxy = (settings.braveProxyUrl || '').trim().replace(/\/+$/, '');
+    const proxy = getBraveProxyUrl(settings);
     if (!proxy) throw new Error('Set a Search Proxy URL in Global App Settings.');
     const params = new URLSearchParams({
         q: query.slice(0, 400),
@@ -1517,7 +1555,7 @@ async function fetchBraveResults(query, settings = appSettings, signal) {
 // System-prompt block with fresh results for `query`, or '' when web search
 // is off, unconfigured, or failed. A failed search never blocks the reply.
 async function buildWebSearchContext(query, signal) {
-    if (!appSettings.webSearchEnabled) return '';
+    if (!isWebSearchEnabled()) return '';
     const cleanQuery = String(query || '').replace(/\s+/g, ' ').trim();
     if (!cleanQuery) return '';
     try {
@@ -4335,7 +4373,7 @@ const startTime = Date.now();
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
     }
-    if (finalUserMessage && appSettings.webSearchEnabled) {
+    if (finalUserMessage && isWebSearchEnabled()) {
         const pending = chat.history.find(m => m.id === newMessageId);
         if (pending) { pending.variations[0].main = '🌐 Searching the web…'; updateSingleMessageView(newMessageId); }
         try {
@@ -4407,7 +4445,7 @@ const response = await fetch(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyToSend}` },
+        : { 'Content-Type': 'application/json', ...(apiKeyToSend ? { 'Authorization': `Bearer ${apiKeyToSend}` } : {}) },
     signal: currentStreamController.signal,
     body: fetchBody
 });
@@ -4866,7 +4904,7 @@ let characterNarratorReminder = applyUserPlaceholder((speakerCharacter.narratorR
     if (chatMemoriesText) {
         fullSystemPrompt += `--- CHAT MEMORIES (HIGH PRIORITY, persist for this chat only; distinct from the initial scenario / first message) ---\n${chatMemoriesText}\n\n`;
     }
-    if (userMessageForAPI && appSettings.webSearchEnabled) {
+    if (userMessageForAPI && isWebSearchEnabled()) {
         const searchVariant = message.variations[message.activeVariant];
         searchVariant.main = '🌐 Searching the web…';
         updateSingleMessageView(messageId);
@@ -4957,7 +4995,7 @@ const response = await fetch(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyToSend}` },
+        : { 'Content-Type': 'application/json', ...(apiKeyToSend ? { 'Authorization': `Bearer ${apiKeyToSend}` } : {}) },
     signal: currentStreamController.signal,
     body: fetchBody
 });
@@ -5531,7 +5569,7 @@ const response = await fetch(fetchUrl, {
     method: 'POST',
     headers: isLocal
         ? { 'Content-Type': 'application/json' }
-        : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKeyToSend}` },
+        : { 'Content-Type': 'application/json', ...(apiKeyToSend ? { 'Authorization': `Bearer ${apiKeyToSend}` } : {}) },
     signal: currentStreamController.signal,
     body: fetchBody
 });
@@ -9299,9 +9337,13 @@ personaEditorAvatarImg.onerror = () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKeyToSend}`,
-                'HTTP-Referer': window.location.href,
-                'X-Title': 'Casual Character Chat'
+                // Keyless providers such as Pollinations reject any extra
+                // header in the CORS preflight, so only send these with a key.
+                ...(apiKeyToSend ? {
+                    'Authorization': `Bearer ${apiKeyToSend}`,
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'Casual Character Chat'
+                } : {})
             },
             body: JSON.stringify({
                 model: modelId, messages, temperature: 0.7, top_p: 0.95, stream: true,
@@ -10817,8 +10859,8 @@ appSettingsBtn.addEventListener('click', () => {
 });
 
 document.getElementById('web-search-toggle-btn')?.addEventListener('click', async () => {
-    const turningOn = !appSettings.webSearchEnabled;
-    if (turningOn && !(appSettings.braveProxyUrl || '').trim()) {
+    const turningOn = !isWebSearchEnabled();
+    if (turningOn && !getBraveProxyUrl()) {
         await loadAppSettingsFromDB();
         appSettingsModal.classList.remove('hidden');
         document.getElementById('brave-proxy-url-input').focus();
@@ -11895,7 +11937,7 @@ async function loadStarterPack() {
                 // user, not to the pack.
                 appSettings = {
                     ...starterAppSettings,
-                    availableModels: starterModels,
+                    availableModels: APP_SERVER?.chat ? [availableModels[0], ...starterModels] : starterModels,
                     apiKey: (appSettings && appSettings.apiKey) || starterAppSettings.apiKey || ''
                 };
 
@@ -11911,9 +11953,9 @@ async function loadStarterPack() {
                 // after a reload.
                 if (starterModels.length > 0) {
                     modelListContainer.innerHTML = '';
-                    starterModels.forEach(model => createModelEntry(model));
+                    appSettings.availableModels.forEach(model => createModelEntry(model));
                     populateModelSelector();
-                    setSelectValueWithFallback(modelSelect, [resolveDefaultModelId(starterModels)]);
+                    setSelectValueWithFallback(modelSelect, [resolveDefaultModelId(appSettings.availableModels)]);
                 }
             }
         }

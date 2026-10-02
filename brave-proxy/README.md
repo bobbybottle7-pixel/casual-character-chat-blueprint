@@ -1,23 +1,20 @@
-# Brave Search proxy
+# Brave Search proxy (Cloudflare option)
 
 The chat app's 🌐 web search uses the [Brave Search API](https://brave.com/search/api/).
 Brave blocks direct calls from a browser (its CORS preflight returns 405), so
 the app sends searches through this tiny proxy, which adds your key and the
 CORS headers.
 
-## Option A — run it on your computer (desktop)
+## Option A — the all-in-one server (easiest)
 
 ```bash
-node brave-proxy/server.js
+BRAVE_API_KEY=your-key node server.mjs
 ```
 
-Needs Node 18+, no install. In the app: **⚙️ Global App Settings → Web Search**,
-paste your Brave key, set **Search Proxy URL** to `http://localhost:8787`,
-press **Test Web Search**, then **Save**.
-
-To keep the key out of the browser instead, start it with
-`BRAVE_API_KEY=your-key node brave-proxy/server.js` and leave the key field
-in the app empty.
+Run from the repo root (Node 18+, no install), then open
+http://localhost:8787. It serves the app, a free AI model that needs no key,
+and web search with the key kept on the server. Nothing to set up in the app;
+🌐 is on by default.
 
 ## Option B — Cloudflare Worker (works on phones too, free tier)
 

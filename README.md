@@ -14,7 +14,13 @@ Create your own AI characters, start role-playing chats, and keep full control o
 
 ### 🌐 Web Search (Brave)
 
-Optional live web search: tap 🌐 next to the message box and each message is searched on Brave first, with the results given to the AI. Setup takes two minutes; see [`brave-proxy/README.md`](brave-proxy/README.md).
+Run everything with one command, no keys to paste in the app:
+
+```bash
+BRAVE_API_KEY=your-brave-key node server.mjs
+```
+
+Open http://localhost:8787. You get a free AI model that needs no key, plus live Brave web search: with 🌐 on (the default), each message is searched first and the results go to the AI. Safe search is off by default. `CHAT_API_URL`, `CHAT_API_KEY` and `CHAT_MODEL` point it at any OpenAI-compatible provider instead. Cloudflare option: [`brave-proxy/README.md`](brave-proxy/README.md).
 
 ---
 
