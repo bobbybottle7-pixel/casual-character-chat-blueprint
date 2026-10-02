@@ -18250,6 +18250,8 @@ const STARTER_PACK_MODELS = (() => {
 // a key or any setup.
 const APP_SERVER = (typeof window !== 'undefined' && window.CCC_SERVER) || null;
 const SERVER_MODEL_ID = "server/free";
+// Where the server's /api routes live; empty means the page's own origin.
+const APP_SERVER_API_BASE = String(APP_SERVER?.apiBase || '').replace(/\/+$/, '');
 const DEFAULT_MODEL_ID = APP_SERVER?.chat ? SERVER_MODEL_ID : "openrouter/free";
 
 // Only reached when starter_pack_data.js is missing, which is why it is one
@@ -18264,7 +18266,7 @@ const availableModels = (() => {
         ...template,
         id: SERVER_MODEL_ID,
         name: APP_SERVER.chatLabel || "Free AI (no key needed)",
-        targetApiUrl: "/api/chat"
+        targetApiUrl: `${APP_SERVER_API_BASE}/api/chat`
     }, ...list];
 })();
 
@@ -19551,7 +19553,7 @@ const BRAVE_SAFESEARCH_VALUES = new Set(['off', 'moderate', 'strict']);
 
 function getBraveProxyUrl(settings = appSettings) {
     const configured = (settings.braveProxyUrl || '').trim().replace(/\/+$/, '');
-    return configured || (APP_SERVER?.brave ? '/api/brave' : '');
+    return configured || (APP_SERVER?.brave ? `${APP_SERVER_API_BASE}/api/brave` : '');
 }
 
 function isWebSearchEnabled() {
