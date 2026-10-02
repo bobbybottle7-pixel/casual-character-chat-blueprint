@@ -14,6 +14,12 @@ Create your own AI characters, start role-playing chats, and keep full control o
 
 ---
 
+### 🧠 Models
+
+The app ships with every free chat model OpenRouter currently offers. See **[MODELS.md](MODELS.md)** for what each one is good and bad at, plus paid uncensored options.
+
+---
+
 ### 💻 Open in GitHub Codespaces
 
 Want a full VS Code editor in your browser? Click the green **<> Code** button → **Codespaces** tab → **Create codespace on main**. The workspace comes with Node, Live Server and the usual web extensions, and starts the app on port 8080 automatically, opening it in a preview tab. To rebuild the standalone file after edits, run `node build/build-standalone.js`.
