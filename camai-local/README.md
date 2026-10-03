@@ -1,32 +1,34 @@
-# CamAI Local Web 1.1
+# CamAI Local Web 1.2
 
-This build fixes the WebGPU failure seen on the Nubia/Chromium screenshot.
-
-The previous build used WebLLM, which requested `maxComputeWorkgroupStorageSize = 32768`, while the browser reported a device limit of `16384`. WebGPU cannot satisfy that request on this device.
-
-CamAI 1.1 therefore uses Hugging Face Transformers.js with the WASM/CPU backend. Transformers.js documents WASM as the broad compatibility fallback and supports quantized Q4 models in the browser.
+A private AI chat that runs entirely in your phone's browser. No account, no API key, no cloud AI. The model runs on the phone's CPU (Transformers.js, WASM backend), so it works on devices whose WebGPU limits are too low for WebLLM (e.g. `requested=32768, limit=16384`).
 
 ## Use on Android
 
 1. Extract the ZIP.
-2. Open `index.html` in Chrome/Chromium.
-3. Tap **Load local model**.
-4. Choose Qwen 2.5 0.5B first. It is the stronger of the two included choices, but it is still a small model.
-5. Wait for the first model download. It may take several minutes.
-6. Send a message.
+2. Open `index.html` in Chrome.
+3. Pick a model and tap **Load model**:
+   - **Qwen 2.5 0.5B** (~510 MB download): better answers.
+   - **SmolLM2 360M** (~365 MB download): faster and lighter. Use this one if the tab crashes or is too slow.
+4. Wait for the first download. It only happens once, and later loads take seconds.
+5. Chat. Tap **Stop** at any time to cut a reply short.
 
-The model is downloaded from Hugging Face on first load. Inference is performed by the browser's CPU/WASM runtime. No AI API key or account is used.
+Your chat is saved in this browser. **New chat** clears it. **Free space** deletes the downloaded model files (your chat is kept).
 
-## Why this build does not use WebGPU
+## What changed in 1.2
 
-The supplied screenshot shows:
-`requested=32768, limit=16384`.
-
-That is a runtime capability mismatch, not a bad API key or missing model. WebGPU is intentionally bypassed here.
+- Fixed: each message was sent to the model twice.
+- Fixed: download progress showed numbers like "4500%".
+- Fixed: error messages were fed back to the model as if it had said them.
+- The page no longer freezes while the model is replying. The model now runs in a background worker.
+- New **Stop** button.
+- Only recent messages are sent to the model, so replies stay fast in long chats.
+- Smaller downloads: the q8 model files are ~510 MB instead of ~786 MB for Qwen. q8 is also the standard format for CPU.
+- **Free space** button, and the browser is asked not to evict the cached model.
+- Confirmations before deleting a chat, plus a remembered model choice and auto-growing input box.
 
 ## Honest limitations
 
-- CPU inference on a 4 GB phone can be slow.
-- The models are small and will not match frontier cloud models.
-- Internet is needed for the first model download unless model files are later bundled locally.
-- The browser still provides the runtime, so this is not yet a native APK.
+- These are very small models. Expect simple, sometimes wrong answers, nowhere near cloud AI.
+- CPU inference on a 4 GB phone is slow, and very long replies take a while.
+- **Stop** reloads the model from the phone's storage, which takes a few seconds, because the CPU engine can't be paused mid-reply.
+- The first download needs internet. The page also loads the Transformers.js library from a CDN each time it opens, so it needs a connection to start.
