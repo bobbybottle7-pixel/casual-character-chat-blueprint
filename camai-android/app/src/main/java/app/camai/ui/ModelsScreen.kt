@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,9 @@ import app.camai.AppViewModel
 import app.camai.CATALOG
 import app.camai.CatalogModel
 import app.camai.EngineState
+import app.camai.FitLevel
+import app.camai.Screen
+import app.camai.SmartFit
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +61,7 @@ fun ModelsScreen(vm: AppViewModel, onBack: () -> Unit) {
     }
     val totalRam = remember { vm.models.totalRamMb() }
     val ready = vm.engine as? EngineState.Ready
+    LaunchedEffect(vm.localModels, vm.settings.contextSize, vm.settings.kvMode) { vm.checkFits() }
 
     Scaffold(
         containerColor = Bg,
@@ -82,9 +87,17 @@ fun ModelsScreen(vm: AppViewModel, onBack: () -> Unit) {
                         )
                         Spacer(Modifier.padding(3.dp))
                         when (val e = vm.engine) {
-                            is EngineState.Ready -> Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Loaded: ${e.name}", color = Good, modifier = Modifier.weight(1f))
-                                TextButton(onClick = { vm.unloadModel() }, enabled = !vm.generating) { Text("Unload") }
+                            is EngineState.Ready -> {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Loaded: ${e.name}", color = Good, modifier = Modifier.weight(1f))
+                                    TextButton(onClick = { vm.unloadModel() }, enabled = !vm.generating) { Text("Unload") }
+                                }
+                                vm.loadedConfig?.let { c ->
+                                    Text(
+                                        "Memory: ${c.nCtx} tokens" + (if (c.kvQ8) " (compressed)" else "") + (if (c.totalMb > 0) " · ~${c.totalMb} MB" else ""),
+                                        color = Muted, fontSize = 12.sp,
+                                    )
+                                }
                             }
                             is EngineState.Loading -> Text("Loading ${e.name}…", color = Warn)
                             is EngineState.Failed -> Text(e.message, color = Bad)
@@ -92,6 +105,11 @@ fun ModelsScreen(vm: AppViewModel, onBack: () -> Unit) {
                         }
                         vm.nativeError?.let { Text(it, color = Bad, fontSize = 13.sp) }
                     }
+                }
+            }
+            item {
+                OutlinedButton(onClick = { vm.screen = Screen.FINDER }, modifier = Modifier.fillMaxWidth()) {
+                    Text("🔎  Find more models on Hugging Face")
                 }
             }
             items(CATALOG, key = { it.file }) { m ->
@@ -119,6 +137,7 @@ fun ModelsScreen(vm: AppViewModel, onBack: () -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Text(f.name, maxLines = 2)
                             Text("${f.length() / (1024 * 1024)} MB", color = Muted, fontSize = 12.sp)
+                            FitLine(vm, f.path)
                         }
                         LoadButton(vm, f, ready?.path)
                         TextButton(onClick = { confirmDelete = f }) { Text("Delete", color = Bad) }
@@ -144,7 +163,8 @@ private fun ModelCard(vm: AppViewModel, m: CatalogModel, totalRamMb: Long, loade
     val file = vm.models.fileFor(m)
     val have = vm.localModels.any { it.name == m.file }
     val dl = vm.downloads[m.file]
-    val tooBig = m.sizeMb > totalRamMb * 0.45
+    val estimate = remember(m.file) { SmartFit.estimateLevel(m.sizeMb.toLong(), vm.budgetMb()) }
+    val tooBig = estimate == FitLevel.TOO_BIG
     Card(colors = CardDefaults.cardColors(containerColor = Panel)) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -158,9 +178,10 @@ private fun ModelCard(vm: AppViewModel, m: CatalogModel, totalRamMb: Long, loade
             }
             Text(m.blurb, color = Muted, fontSize = 13.sp)
             Text(
-                "${m.sizeMb} MB" + (if (m.canThink) " · can think" else "") + (if (tooBig) " · may be too big for this phone" else ""),
+                "${m.sizeMb} MB" + (if (m.canThink) " · can think" else "") + (if (tooBig) " · probably too big for this phone" else ""),
                 color = if (tooBig) Warn else Muted, fontSize = 12.sp,
             )
+            if (have) FitLine(vm, file.path)
             Spacer(Modifier.padding(4.dp))
             when {
                 dl != null -> {
@@ -195,5 +216,20 @@ private fun LoadButton(vm: AppViewModel, file: File, loadedPath: String?) {
         }
         vm.engine is EngineState.Loading -> Text("Loading…", color = Warn)
         else -> Button(onClick = { vm.loadModel(file.path) }, enabled = !vm.generating) { Text("Load") }
+    }
+}
+
+/** Smart Fit result for a downloaded model: how it will run on this phone. */
+@Composable
+private fun FitLine(vm: AppViewModel, path: String) {
+    if (!vm.settings.smartFit) return
+    val plan = vm.fitPlans[path]
+    when {
+        !vm.fitPlans.containsKey(path) -> Text("Smart Fit: checking…", color = Muted, fontSize = 12.sp)
+        plan == null -> Text("Smart Fit: couldn't read this file", color = Muted, fontSize = 12.sp)
+        else -> Text(
+            plan.describe(), fontSize = 12.sp,
+            color = when (plan.level) { FitLevel.GOOD -> Good; FitLevel.TIGHT -> Warn; FitLevel.TOO_BIG -> Bad },
+        )
     }
 }

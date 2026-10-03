@@ -23,7 +23,10 @@ object LlamaEngine {
         private set
 
     private external fun nativeInit(libDir: ByteArray)
-    private external fun nativeLoad(path: ByteArray, nCtx: Int, nThreads: Int): ByteArray
+    private external fun nativeLoad(path: ByteArray, nCtx: Int, nThreads: Int, kvQ8: Boolean, nBatch: Int): ByteArray
+    private external fun nativePlan(path: ByteArray, ctxSizes: IntArray): ByteArray
+    private external fun nativeSaveSession(path: ByteArray): Boolean
+    private external fun nativeLoadSession(path: ByteArray): Boolean
     private external fun nativeUnload()
     private external fun nativeInfo(): ByteArray
     private external fun nativeSetThreads(n: Int)
@@ -45,9 +48,9 @@ object LlamaEngine {
     }
 
     /** Returns null on success, otherwise a readable error. */
-    suspend fun load(path: String, nCtx: Int, nThreads: Int): String? = withContext(dispatcher) {
+    suspend fun load(path: String, nCtx: Int, nThreads: Int, kvQ8: Boolean = false, nBatch: Int = 256): String? = withContext(dispatcher) {
         loadedPath = null
-        val err = nativeLoad(path.toByteArray(), nCtx, nThreads).decode()
+        val err = nativeLoad(path.toByteArray(), nCtx, nThreads, kvQ8, nBatch).decode()
         if (err.isEmpty()) {
             loadedPath = path
             null
@@ -67,6 +70,20 @@ object LlamaEngine {
 
     suspend fun bench(threads: IntArray, nTokens: Int): String = withContext(dispatcher) {
         nativeBench(threads, nTokens).decode()
+    }
+
+    /** Smart Fit: simulated memory use (JSON) for each context size, without reading the weights. */
+    suspend fun plan(path: String, ctxSizes: IntArray): String = withContext(dispatcher) {
+        nativePlan(path.toByteArray(), ctxSizes).decode()
+    }
+
+    /** Instant Resume: write/restore the current conversation state. */
+    suspend fun saveSession(path: String): Boolean = withContext(dispatcher) {
+        loadedPath != null && nativeSaveSession(path.toByteArray())
+    }
+
+    suspend fun loadSession(path: String): Boolean = withContext(dispatcher) {
+        loadedPath != null && nativeLoadSession(path.toByteArray())
     }
 
     /** Thread-safe: makes the running generation stop after the current word. */

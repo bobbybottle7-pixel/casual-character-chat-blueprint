@@ -51,6 +51,9 @@ data class Settings(
     val lastModelPath: String? = null,
     val openRouterKey: String = "",
     val cloudModel: String = "openrouter/free",
+    val smartFit: Boolean = true,        // pick memory settings that fit this phone before loading
+    val kvMode: String = "auto",         // conversation-memory compression: auto | off | on
+    val instantResume: Boolean = true,   // save each chat's model state so it resumes instantly
 )
 
 const val DEFAULT_CHARACTER_ID = "camai"

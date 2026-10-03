@@ -18,5 +18,6 @@ add_library(camai SHARED engine.cpp jni_bridge.cpp)
 target_include_directories(camai PRIVATE
     ${LLAMA_SRC}/include
     ${LLAMA_SRC}/common
+    ${LLAMA_SRC}/src
     ${LLAMA_SRC}/ggml/include)
 target_link_libraries(camai llama llama-common android log)

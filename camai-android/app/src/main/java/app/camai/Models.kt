@@ -74,16 +74,18 @@ class ModelManager(private val context: Context) {
         return CATALOG.firstOrNull { it.file == name }?.name ?: name.removeSuffix(".gguf")
     }
 
-    fun startDownload(m: CatalogModel) {
-        File(dir, m.file + ".part").delete()
-        val req = DownloadManager.Request(Uri.parse(m.url))
-            .setTitle("CamAI: ${m.name}")
-            .setDescription("Downloading AI model (${m.sizeMb} MB)")
+    fun startDownload(m: CatalogModel) = startDownload(m.name, m.file, m.url, m.sizeMb)
+
+    fun startDownload(name: String, file: String, url: String, sizeMb: Int) {
+        File(dir, "$file.part").delete()
+        val req = DownloadManager.Request(Uri.parse(url))
+            .setTitle("CamAI: $name")
+            .setDescription("Downloading AI model ($sizeMb MB)")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-            .setDestinationInExternalFilesDir(context, null, "models/${m.file}.part")
+            .setDestinationInExternalFilesDir(context, null, "models/$file.part")
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
-        prefs.edit().putLong(m.file, dm.enqueue(req)).apply()
+        prefs.edit().putLong(file, dm.enqueue(req)).apply()
     }
 
     fun pendingDownloads(): List<String> = prefs.all.keys.toList()

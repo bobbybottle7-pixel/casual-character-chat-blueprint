@@ -49,8 +49,23 @@ JNIEXPORT void JNICALL Java_app_camai_LlamaEngine_nativeInit(JNIEnv * env, jobje
 }
 
 JNIEXPORT jbyteArray JNICALL Java_app_camai_LlamaEngine_nativeLoad(JNIEnv * env, jobject, jbyteArray path, jint n_ctx,
-                                                                   jint n_threads) {
-    return to_bytes(env, camai::load(from_bytes(env, path), n_ctx, n_threads));
+                                                                   jint n_threads, jboolean kv_q8, jint n_batch) {
+    return to_bytes(env, camai::load(from_bytes(env, path), n_ctx, n_threads, kv_q8, n_batch));
+}
+
+JNIEXPORT jbyteArray JNICALL Java_app_camai_LlamaEngine_nativePlan(JNIEnv * env, jobject, jbyteArray path, jintArray ctx_sizes) {
+    const jsize      n = env->GetArrayLength(ctx_sizes);
+    std::vector<int> sizes(n);
+    env->GetIntArrayRegion(ctx_sizes, 0, n, sizes.data());
+    return to_bytes(env, camai::plan_json(from_bytes(env, path), sizes));
+}
+
+JNIEXPORT jboolean JNICALL Java_app_camai_LlamaEngine_nativeSaveSession(JNIEnv * env, jobject, jbyteArray path) {
+    return camai::save_session(from_bytes(env, path));
+}
+
+JNIEXPORT jboolean JNICALL Java_app_camai_LlamaEngine_nativeLoadSession(JNIEnv * env, jobject, jbyteArray path) {
+    return camai::load_session(from_bytes(env, path));
 }
 
 JNIEXPORT void JNICALL Java_app_camai_LlamaEngine_nativeUnload(JNIEnv *, jobject) {

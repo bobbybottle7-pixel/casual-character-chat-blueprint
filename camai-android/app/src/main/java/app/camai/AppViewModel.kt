@@ -26,7 +26,7 @@ import kotlinx.serialization.json.longOrNull
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
-enum class Screen { CHAT, MODELS, SETTINGS, CHARACTERS, EDIT_CHARACTER, DIAGNOSTICS }
+enum class Screen { CHAT, MODELS, FINDER, SETTINGS, CHARACTERS, EDIT_CHARACTER, DIAGNOSTICS }
 
 sealed class EngineState {
     data object Off : EngineState()
@@ -67,6 +67,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var notice by mutableStateOf<String?>(null)
     var speakingId by mutableStateOf<String?>(null); private set
 
+    // Smart Fit
+    var fitPlans by mutableStateOf<Map<String, FitPlan?>>(emptyMap()); private set
+    var loadedConfig by mutableStateOf<FitConfig?>(null); private set
+
+    // Model Finder
+    var finderQuery by mutableStateOf("")
+    var finderResults by mutableStateOf<List<HfRepo>>(emptyList()); private set
+    var finderRepo by mutableStateOf<String?>(null); private set
+    var finderFiles by mutableStateOf<List<HfFile>>(emptyList()); private set
+    var finderBusy by mutableStateOf(false); private set
+    var finderError by mutableStateOf<String?>(null); private set
+
+    // Instant Resume: which chat's conversation state currently sits in the engine
+    private var engineChatId: String? = null
+    private val sessionsDir = File(ctx.filesDir, "sessions").apply { mkdirs() }
+
     val characters: List<Character> get() = BUILT_IN_CHARACTERS + customCharacters
     val currentChat: Chat? get() = chats.firstOrNull { it.id == currentChatId }
     fun characterFor(chat: Chat?): Character =
@@ -102,6 +118,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (new.threads != old.threads && engine is EngineState.Ready) {
             viewModelScope.launch { LlamaEngine.setThreads(threadsToUse()) }
         }
+        if (new.contextSize != old.contextSize || new.kvMode != old.kvMode) resetFitPlans()
     }
 
     fun autoThreads(): Int = (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 4)
@@ -113,20 +130,41 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (engine is EngineState.Loading || generating) return
         if (nativeError != null) { notice = nativeError; return }
         val name = models.displayName(path)
+        val previous = engine as? EngineState.Ready
         engine = EngineState.Loading(name)
         viewModelScope.launch {
+            saveCurrentSession()
+            engineChatId = null
+            if (previous != null) {
+                // Unload first so the planner counts the memory it frees.
+                LlamaEngine.unload()
+                loadedConfig = null
+            }
+            val s = settings
+            var config = FitConfig(s.contextSize, 256, s.kvMode == "on", 0)
+            var fitNote = ""
+            if (s.smartFit) {
+                planFor(path, force = true)?.let { plan ->
+                    config = plan.chosen
+                    fitNote = when (plan.level) {
+                        FitLevel.TOO_BIG -> " Warning: it probably needs more memory than is free (${plan.chosen.totalMb} MB vs ~${plan.budgetMb} MB), so it may be slow or close."
+                        else -> " Smart Fit: ${plan.chosen.nCtx} memory" + (if (plan.chosen.kvQ8) ", compressed" else "") + "."
+                    }
+                }
+            }
             CrashGuard.mark(ctx, "loading", name)
             val err = try {
-                LlamaEngine.load(path, settings.contextSize, threadsToUse())
+                LlamaEngine.load(path, config.nCtx, threadsToUse(), config.kvQ8, config.nBatch)
             } catch (t: Throwable) {
                 t.message ?: "Unknown error"
             }
             CrashGuard.clear(ctx, "loading")
             if (err == null) {
                 engine = EngineState.Ready(path, name)
+                loadedConfig = config
                 modelInfo = LlamaEngine.info()
                 updateSettings { it.copy(lastModelPath = path) }
-                notice = "$name is ready."
+                notice = "$name is ready.$fitNote"
             } else {
                 engine = EngineState.Failed(err)
                 notice = err
@@ -137,6 +175,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun unloadModel() {
         if (generating) return
         viewModelScope.launch {
+            saveCurrentSession()
+            engineChatId = null
+            loadedConfig = null
             LlamaEngine.unload()
             engine = EngineState.Off
             modelInfo = "{}"
@@ -207,7 +248,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (generating) return@launch
                 LlamaEngine.unload()
                 engine = EngineState.Off
+                engineChatId = null
+                loadedConfig = null
             }
+            sessionsDir.listFiles()?.filter { it.name.contains("__${file.name}__") }?.forEach { it.delete() }
+            fitPlans = fitPlans - file.path
             models.delete(file)
             if (settings.lastModelPath == file.path) updateSettings { it.copy(lastModelPath = null) }
             localModels = models.localModels()
@@ -252,6 +297,132 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ---------------------------------------------------------------- Smart Fit
+
+    /** Simulates the model's memory needs and picks settings that fit (cached per model). */
+    suspend fun planFor(path: String, force: Boolean = false): FitPlan? {
+        if (!force && fitPlans.containsKey(path)) return fitPlans[path]
+        if (nativeError != null) return null
+        val plan = try {
+            val configs = SmartFit.parse(LlamaEngine.plan(path, SmartFit.contextCandidates(settings.contextSize)))
+            val loadedMb = if ((engine as? EngineState.Ready)?.path != null) loadedConfig?.totalMb?.toLong() ?: 0 else 0
+            SmartFit.choose(configs, settings.contextSize, settings.kvMode, SmartFit.budgetMb(models.availRamMb(), models.totalRamMb(), loadedMb))
+        } catch (t: Throwable) {
+            null
+        }
+        fitPlans = fitPlans + (path to plan)
+        return plan
+    }
+
+    fun checkFits() {
+        if (nativeError != null) return
+        viewModelScope.launch {
+            localModels.filter { !fitPlans.containsKey(it.path) }.forEach { planFor(it.path) }
+        }
+    }
+
+    /** Settings that change memory use invalidate the cached plans. */
+    fun resetFitPlans() { fitPlans = emptyMap() }
+
+    // ---------------------------------------------------------------- Model Finder
+
+    fun searchModels(query: String = finderQuery) {
+        finderQuery = query
+        if (query.isBlank()) return
+        finderBusy = true
+        finderError = null
+        finderRepo = null
+        viewModelScope.launch {
+            try {
+                finderResults = HuggingFace.search(query)
+                if (finderResults.isEmpty()) finderError = "No GGUF models found for \"$query\"."
+            } catch (t: Throwable) {
+                finderError = "Search failed: ${t.message}. Check your internet connection."
+            } finally {
+                finderBusy = false
+            }
+        }
+    }
+
+    fun openRepo(repo: String) {
+        finderRepo = repo
+        finderFiles = emptyList()
+        finderBusy = true
+        finderError = null
+        viewModelScope.launch {
+            try {
+                val (gated, files) = HuggingFace.files(repo)
+                finderFiles = files
+                finderError = when {
+                    gated -> "This model requires accepting a licence on huggingface.co, so CamAI can't download it directly. " +
+                        "Look for a copy from another uploader (e.g. bartowski, unsloth, ggml-org)."
+                    files.isEmpty() -> "No usable GGUF files in this repository."
+                    else -> null
+                }
+            } catch (t: Throwable) {
+                finderError = "Could not list files: ${t.message}"
+            } finally {
+                finderBusy = false
+            }
+        }
+    }
+
+    fun closeRepo() { finderRepo = null; finderFiles = emptyList(); finderError = null }
+
+    fun budgetMb(): Long = SmartFit.budgetMb(
+        models.availRamMb(), models.totalRamMb(),
+        if (engine is EngineState.Ready) loadedConfig?.totalMb?.toLong() ?: 0 else 0,
+    )
+
+    fun downloadHf(f: HfFile) {
+        if (models.freeStorageMb() < f.sizeMb + 200) {
+            notice = "Not enough free storage (needs ${f.sizeMb + 200} MB)."
+            return
+        }
+        runCatching { models.startDownload(f.fileName, f.fileName, f.url, f.sizeMb.toInt()) }
+            .onSuccess { ensurePolling(); notice = "Downloading ${f.fileName}… It will appear under Models." }
+            .onFailure { notice = "Could not start the download: ${it.message}" }
+    }
+
+    // ---------------------------------------------------------------- Instant Resume
+
+    private fun sessionFile(chatId: String): File? {
+        val ready = engine as? EngineState.Ready ?: return null
+        val cfg = loadedConfig ?: return null
+        // The saved state only fits the exact model and memory layout it came from.
+        return File(sessionsDir, "${chatId}__${File(ready.path).name}__${cfg.nCtx}_${if (cfg.kvQ8) "q8" else "f16"}.bin")
+    }
+
+    private suspend fun saveCurrentSession() {
+        val id = engineChatId ?: return
+        if (!settings.instantResume || chats.none { it.id == id }) return
+        val f = sessionFile(id) ?: return
+        withContext(Dispatchers.IO) { f.delete(); File(f.path + ".ckpt").delete() }
+        LlamaEngine.saveSession(f.path)
+        pruneSessions()
+    }
+
+    /** Puts the chat's saved state into the engine if it isn't there already. */
+    private suspend fun resumeSession(chatId: String) {
+        if (engineChatId == chatId) return
+        saveCurrentSession()
+        engineChatId = chatId
+        if (!settings.instantResume) return
+        val f = sessionFile(chatId) ?: return
+        if (withContext(Dispatchers.IO) { f.exists() }) LlamaEngine.loadSession(f.path)
+    }
+
+    private fun pruneSessions() {
+        val files = sessionsDir.listFiles { f -> f.name.endsWith(".bin") }?.sortedByDescending { it.lastModified() } ?: return
+        files.drop(12).forEach { it.delete(); File(it.path + ".ckpt").delete() }
+    }
+
+    /** Called when the app goes to the background: keep the current chat resumable. */
+    fun onBackground() {
+        if (generating || engine !is EngineState.Ready) return
+        viewModelScope.launch { saveCurrentSession() }
+    }
+
     // ---------------------------------------------------------------- chats
 
     fun openChat(id: String) {
@@ -275,7 +446,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteChat(id: String) {
         if (generating && streamingChatId == id) stop()
         chats = chats.filterNot { it.id == id }
-        viewModelScope.launch(Dispatchers.IO) { store.deleteChat(id) }
+        if (engineChatId == id) engineChatId = null
+        viewModelScope.launch(Dispatchers.IO) {
+            store.deleteChat(id)
+            sessionsDir.listFiles()?.filter { it.name.startsWith("${id}__") }?.forEach { it.delete() }
+        }
         if (currentChatId == id) currentChatId = chats.firstOrNull()?.id
     }
 
@@ -398,6 +573,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                     stats = "Cloud · ${s.cloudModel}"
                 } else {
+                    resumeSession(chat.id)
                     val res = json.parseToJsonElement(
                         LlamaEngine.generate(history, s.temperature, s.maxTokens, s.thinking, onText),
                     ).jsonObject

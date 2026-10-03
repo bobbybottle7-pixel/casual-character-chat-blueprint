@@ -71,7 +71,14 @@ fun App(vm: AppViewModel) {
         }
     }
 
-    val back = { vm.screen = if (vm.screen == Screen.EDIT_CHARACTER) Screen.CHARACTERS else Screen.CHAT }
+    val back = {
+        when {
+            vm.screen == Screen.FINDER && vm.finderRepo != null -> vm.closeRepo()
+            vm.screen == Screen.FINDER -> vm.screen = Screen.MODELS
+            vm.screen == Screen.EDIT_CHARACTER -> vm.screen = Screen.CHARACTERS
+            else -> vm.screen = Screen.CHAT
+        }
+    }
     BackHandler(enabled = vm.screen != Screen.CHAT) { back() }
     BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
 
@@ -119,6 +126,7 @@ fun App(vm: AppViewModel) {
             when (vm.screen) {
                 Screen.CHAT -> ChatScreen(vm) { scope.launch { drawer.open() } }
                 Screen.MODELS -> ModelsScreen(vm, back)
+                Screen.FINDER -> FinderScreen(vm, back)
                 Screen.SETTINGS -> SettingsScreen(vm, back)
                 Screen.CHARACTERS -> CharactersScreen(vm, back)
                 Screen.EDIT_CHARACTER -> CharacterEditor(vm, back)

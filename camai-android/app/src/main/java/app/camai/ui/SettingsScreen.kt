@@ -140,6 +140,28 @@ fun SettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
                     vm.updateSettings { it.copy(autoLoad = v) }
                 }
             }
+            item {
+                Toggle(
+                    "Smart Fit",
+                    "Before loading, CamAI simulates how much memory a model needs and picks settings that fit your phone. Prevents most crashes.",
+                    s.smartFit,
+                ) { v -> vm.updateSettings { it.copy(smartFit = v) } }
+            }
+            item {
+                Label("Compressed memory", "Stores the conversation memory in 8-bit, halving its RAM use. Auto uses it only when needed.")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("auto" to "Auto", "off" to "Off", "on" to "Always").forEach { (k, label) ->
+                        FilterChip(selected = s.kvMode == k, onClick = { vm.updateSettings { it.copy(kvMode = k) } }, label = { Text(label) })
+                    }
+                }
+            }
+            item {
+                Toggle(
+                    "Instant Resume",
+                    "Saves each chat's model memory to storage, so switching chats or reopening the app continues without re-reading the conversation.",
+                    s.instantResume,
+                ) { v -> vm.updateSettings { it.copy(instantResume = v) } }
+            }
 
             item { Section("Cloud boost (optional)") }
             item {

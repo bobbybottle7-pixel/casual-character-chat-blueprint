@@ -9,6 +9,7 @@
 #include "chat.h"
 #include "common.h"
 #include "ggml-backend.h"
+#include "llama-ext.h"  // llama_get_memory_breakdown (exported, used by llama.cpp's own --fit)
 #include "llama.h"
 #include "sampling.h"
 
@@ -16,7 +17,9 @@ namespace camai {
 
 namespace {
 
-constexpr int N_BATCH = 256;  // smaller batches keep peak memory down on 4 GB phones
+// Tokens processed per step while reading a prompt. Smaller = less scratch memory
+// (matters for big-vocabulary models), slightly slower reading. Chosen by Smart Fit.
+int N_BATCH = 256;
 
 llama_model *              g_model   = nullptr;
 llama_context *            g_ctx     = nullptr;
@@ -186,6 +189,19 @@ size_t rewind_cache(const std::vector<llama_token> & prompt, size_t n_keep) {
     return 0;
 }
 
+void apply_context_params(llama_context_params & cp, int n_ctx, int n_threads, bool kv_q8, int n_batch) {
+    cp.n_ctx           = n_ctx;
+    cp.n_batch         = n_batch;
+    cp.n_ubatch        = n_batch;
+    cp.n_threads       = n_threads;
+    cp.n_threads_batch = n_threads;
+    if (kv_q8) {
+        cp.type_k          = GGML_TYPE_Q8_0;
+        cp.type_v          = GGML_TYPE_Q8_0;
+        cp.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;  // a quantized V cache requires flash attention
+    }
+}
+
 void free_context() {
     if (g_ctx) {
         llama_free(g_ctx);
@@ -215,7 +231,7 @@ void backend_init(const std::string & native_lib_dir) {
     llama_backend_init();
 }
 
-std::string load(const std::string & path, int n_ctx, int n_threads) {
+std::string load(const std::string & path, int n_ctx, int n_threads, bool kv_q8, int n_batch) {
     unload();
 
     auto mp         = llama_model_default_params();
@@ -231,13 +247,10 @@ std::string load(const std::string & path, int n_ctx, int n_threads) {
         n_ctx = n_train;
     }
 
-    auto cp            = llama_context_default_params();
-    cp.n_ctx           = n_ctx;
-    cp.n_batch         = N_BATCH;
-    cp.n_ubatch        = N_BATCH;
-    cp.n_threads       = n_threads;
-    cp.n_threads_batch = n_threads;
-    g_ctx              = llama_init_from_model(g_model, cp);
+    auto cp = llama_context_default_params();
+    N_BATCH = std::max(32, n_batch);
+    apply_context_params(cp, n_ctx, n_threads, kv_q8, N_BATCH);
+    g_ctx = llama_init_from_model(g_model, cp);
     if (!g_ctx) {
         llama_model_free(g_model);
         g_model = nullptr;
@@ -527,6 +540,142 @@ std::string bench_threads_json(const std::vector<int> & thread_counts, int n_tok
     g_checkpoints.clear();
     llama_set_n_threads(g_ctx, g_n_threads, g_n_threads);
     return o.str();
+}
+
+std::string plan_json(const std::string & path, const std::vector<int> & ctx_sizes) {
+    auto mp      = llama_model_default_params();
+    mp.no_alloc  = true;  // read metadata only and simulate allocations: fast, uses almost no memory
+    mp.load_mode = LLAMA_LOAD_MODE_NONE;
+    llama_model * model = llama_model_load_from_file(path.c_str(), mp);
+    if (!model) {
+        return "{\"ok\":false,\"error\":\"Could not read this model file.\"}";
+    }
+    const int n_train = llama_model_n_ctx_train(model);
+
+    std::ostringstream o;
+    o << "{\"ok\":true,\"n_ctx_train\":" << n_train << ",\"configs\":[";
+    bool first = true;
+    for (int n_ctx : ctx_sizes) {
+        if (n_train > 0 && n_ctx > n_train) {
+            continue;
+        }
+        for (int n_batch : { 256, 64 })
+        for (bool kv_q8 : { false, true }) {
+            auto cp = llama_context_default_params();
+            apply_context_params(cp, n_ctx, 1, kv_q8, n_batch);
+            llama_context * ctx = llama_init_from_model(model, cp);
+            if (!ctx) {
+                continue;
+            }
+            size_t m = 0, c = 0, k = 0;
+            for (const auto & [buft, mb] : llama_get_memory_breakdown(ctx)) {
+                m += mb.model;
+                c += mb.context;
+                k += mb.compute;
+            }
+            llama_free(ctx);
+            const double MiB = 1024.0 * 1024.0;
+            o << (first ? "" : ",") << "{\"n_ctx\":" << n_ctx << ",\"n_batch\":" << n_batch << ",\"kv_q8\":" << (kv_q8 ? "true" : "false")
+              << ",\"model_mb\":" << (long long) (m / MiB) << ",\"context_mb\":" << (long long) (c / MiB)
+              << ",\"compute_mb\":" << (long long) (k / MiB) << ",\"total_mb\":" << (long long) ((m + c + k) / MiB) << "}";
+            first = false;
+        }
+    }
+    o << "]}";
+    llama_model_free(model);
+    return o.str();
+}
+
+namespace {
+
+bool write_checkpoints(const std::string & path) {
+    FILE * f = fopen(path.c_str(), "wb");
+    if (!f) {
+        return false;
+    }
+    bool           ok    = true;
+    const uint32_t count = (uint32_t) g_checkpoints.size();
+    ok &= fwrite(&count, sizeof(count), 1, f) == 1;
+    for (const auto & cp : g_checkpoints) {
+        const uint64_t n_tok = cp.tokens.size();
+        const uint64_t n_dat = cp.data.size();
+        ok &= fwrite(&n_tok, sizeof(n_tok), 1, f) == 1;
+        ok &= fwrite(cp.tokens.data(), sizeof(llama_token), n_tok, f) == n_tok;
+        ok &= fwrite(&n_dat, sizeof(n_dat), 1, f) == 1;
+        ok &= fwrite(cp.data.data(), 1, n_dat, f) == n_dat;
+    }
+    ok &= fclose(f) == 0;
+    return ok;
+}
+
+void read_checkpoints(const std::string & path) {
+    FILE * f = fopen(path.c_str(), "rb");
+    if (!f) {
+        return;
+    }
+    uint32_t count = 0;
+    if (fread(&count, sizeof(count), 1, f) == 1 && count <= MAX_CHECKPOINTS) {
+        for (uint32_t i = 0; i < count; i++) {
+            Checkpoint cp;
+            uint64_t   n_tok = 0, n_dat = 0;
+            if (fread(&n_tok, sizeof(n_tok), 1, f) != 1 || n_tok > (uint64_t) g_n_ctx) break;
+            cp.tokens.resize(n_tok);
+            if (fread(cp.tokens.data(), sizeof(llama_token), n_tok, f) != n_tok) break;
+            if (fread(&n_dat, sizeof(n_dat), 1, f) != 1 || n_dat > (1ull << 32)) break;
+            cp.data.resize(n_dat);
+            if (fread(cp.data.data(), 1, n_dat, f) != n_dat) break;
+            // Only keep checkpoints that are a prefix of the restored conversation.
+            if (starts_with_tokens(g_cache, cp.tokens)) {
+                g_checkpoints.push_back(std::move(cp));
+            }
+        }
+    }
+    fclose(f);
+}
+
+}  // namespace
+
+bool save_session(const std::string & path) {
+    if (!g_ctx || g_cache.empty()) {
+        return false;
+    }
+    const std::string tmp = path + ".tmp";
+    const std::string ckp = path + ".ckpt";
+    if (llama_state_seq_save_file(g_ctx, tmp.c_str(), 0, g_cache.data(), g_cache.size()) == 0) {
+        remove(tmp.c_str());
+        return false;
+    }
+    if (!write_checkpoints(ckp + ".tmp")) {
+        remove((ckp + ".tmp").c_str());
+    } else {
+        rename((ckp + ".tmp").c_str(), ckp.c_str());
+    }
+    return rename(tmp.c_str(), path.c_str()) == 0;
+}
+
+bool load_session(const std::string & path) {
+    if (!g_ctx) {
+        return false;
+    }
+    auto * mem = llama_get_memory(g_ctx);
+    llama_memory_clear(mem, true);
+    g_cache.clear();
+    g_checkpoints.clear();
+
+    std::vector<llama_token> tokens(g_n_ctx);
+    size_t                   count = 0;
+    if (llama_state_seq_load_file(g_ctx, path.c_str(), 0, tokens.data(), tokens.size(), &count) == 0 || count == 0) {
+        llama_memory_clear(mem, true);
+        return false;
+    }
+    tokens.resize(count);
+    g_cache = std::move(tokens);
+    read_checkpoints(path + ".ckpt");
+    return true;
+}
+
+int cached_tokens() {
+    return (int) g_cache.size();
 }
 
 }  // namespace camai

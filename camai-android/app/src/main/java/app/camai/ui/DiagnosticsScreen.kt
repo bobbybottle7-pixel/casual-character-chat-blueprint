@@ -76,6 +76,8 @@ fun diagnosticsText(vm: AppViewModel): String = buildString {
     vm.nativeError?.let { appendLine("Native error: $it") }
     appendLine("Threads: ${vm.threadsToUse()} (setting: ${if (vm.settings.threads == 0) "auto" else vm.settings.threads})")
     appendLine("Context: ${vm.settings.contextSize}, max reply: ${vm.settings.maxTokens}, thinking: ${vm.settings.thinking}")
+    appendLine("Smart Fit: ${vm.settings.smartFit}, compression: ${vm.settings.kvMode}, instant resume: ${vm.settings.instantResume}, budget ~${vm.budgetMb()} MB")
+    vm.loadedConfig?.let { appendLine("Loaded with: ctx ${it.nCtx}, batch ${it.nBatch}, kv ${if (it.kvQ8) "q8" else "f16"}, planned ${it.totalMb} MB") }
     runCatching {
         val info = Json.parseToJsonElement(vm.modelInfo).jsonObject
         if (info.isNotEmpty()) {

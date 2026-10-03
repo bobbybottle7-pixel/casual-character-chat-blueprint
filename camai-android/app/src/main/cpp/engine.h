@@ -40,7 +40,8 @@ struct GenStats {
 using TokenCallback = std::function<bool(const std::string &)>;
 
 void        backend_init(const std::string & native_lib_dir);
-std::string load(const std::string & path, int n_ctx, int n_threads);  // "" on success, else a readable error
+// kv_q8: store the conversation memory (KV cache) in 8-bit, halving its RAM use.
+std::string load(const std::string & path, int n_ctx, int n_threads, bool kv_q8 = false, int n_batch = 256);  // "" on success, else a readable error
 void        unload();
 bool        is_loaded();
 std::string model_info_json();
@@ -48,5 +49,15 @@ void        set_threads(int n_threads);
 void        request_stop();  // safe to call from any thread
 GenStats    generate(const std::vector<Msg> & messages, const GenParams & params, const TokenCallback & on_text);
 std::string bench_threads_json(const std::vector<int> & thread_counts, int n_tokens);
+
+// Smart Fit: simulate (without reading weights) how much RAM the model needs for each
+// context size, with and without 8-bit KV memory. Returns JSON.
+std::string plan_json(const std::string & path, const std::vector<int> & ctx_sizes);
+
+// Instant Resume: persist the current conversation state (tokens, KV/recurrent state and
+// checkpoints) so a chat can continue later without re-reading it.
+bool save_session(const std::string & path);
+bool load_session(const std::string & path);
+int  cached_tokens();
 
 }  // namespace camai

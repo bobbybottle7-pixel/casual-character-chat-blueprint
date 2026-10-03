@@ -17,4 +17,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent { CamAITheme { App(vm) } }
     }
+
+    override fun onStop() {
+        super.onStop()
+        vm.onBackground()  // Instant Resume: save the current chat's model state
+    }
 }

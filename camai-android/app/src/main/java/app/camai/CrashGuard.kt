@@ -69,5 +69,5 @@ object CrashGuard {
 }
 
 object BuildConfigInfo {
-    const val version = "2.0.0"
+    const val version = "2.1.0"
 }
