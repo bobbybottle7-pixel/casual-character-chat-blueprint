@@ -81,6 +81,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // Instant Resume: which chat's conversation state currently sits in the engine
     private var engineChatId: String? = null
+    private var engineModelPath: String? = null  // model the engine's state belongs to (survives the Loading state)
     private val sessionsDir = File(ctx.filesDir, "sessions").apply { mkdirs() }
 
     val characters: List<Character> get() = BUILT_IN_CHARACTERS + customCharacters
@@ -139,6 +140,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Unload first so the planner counts the memory it frees.
                 LlamaEngine.unload()
                 loadedConfig = null
+                engineModelPath = null
             }
             val s = settings
             var config = FitConfig(s.contextSize, 256, s.kvMode == "on", 0)
@@ -162,6 +164,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (err == null) {
                 engine = EngineState.Ready(path, name)
                 loadedConfig = config
+                engineModelPath = path
                 modelInfo = LlamaEngine.info()
                 updateSettings { it.copy(lastModelPath = path) }
                 notice = "$name is ready.$fitNote"
@@ -178,6 +181,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             saveCurrentSession()
             engineChatId = null
             loadedConfig = null
+            engineModelPath = null
             LlamaEngine.unload()
             engine = EngineState.Off
             modelInfo = "{}"
@@ -250,6 +254,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 engine = EngineState.Off
                 engineChatId = null
                 loadedConfig = null
+                engineModelPath = null
             }
             sessionsDir.listFiles()?.filter { it.name.contains("__${file.name}__") }?.forEach { it.delete() }
             fitPlans = fitPlans - file.path
@@ -387,10 +392,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------------------------------------------------------------- Instant Resume
 
     private fun sessionFile(chatId: String): File? {
-        val ready = engine as? EngineState.Ready ?: return null
+        val path = engineModelPath ?: return null
         val cfg = loadedConfig ?: return null
         // The saved state only fits the exact model and memory layout it came from.
-        return File(sessionsDir, "${chatId}__${File(ready.path).name}__${cfg.nCtx}_${if (cfg.kvQ8) "q8" else "f16"}.bin")
+        return File(sessionsDir, "${chatId}__${File(path).name}__${cfg.nCtx}_${if (cfg.kvQ8) "q8" else "f16"}.bin")
     }
 
     private suspend fun saveCurrentSession() {
