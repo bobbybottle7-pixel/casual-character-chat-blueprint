@@ -1,0 +1,61 @@
+name: CamAI Android build
+
+on:
+  push:
+    paths:
+      - "camai-android/**"
+      - ".gitmodules"
+      - ".github/workflows/camai-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: camai-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Android NDK and CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;29.0.13113456" "cmake;3.31.6" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Test and build APK
+        working-directory: camai-android
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease
+
+      - name: Collect APK
+        run: cp camai-android/app/build/outputs/apk/release/app-release.apk CamAI.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CamAI-apk
+          path: CamAI.apk
+
+      # A fixed "camai-latest" release gives a stable download link for the newest build.
+      - name: Publish to the camai-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete camai-latest --yes --cleanup-tag || true
+          gh release create camai-latest CamAI.apk \
+            --target "$GITHUB_SHA" \
+            --title "CamAI for Android (latest build)" \
+            --notes "Built automatically from ${GITHUB_SHA::7} on ${GITHUB_REF_NAME}. On your phone, download CamAI.apk and open it to install or update."

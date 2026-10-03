@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Outlined diamond with a solid centre, matching the CamAI web icon. -->
+    <path android:strokeColor="#7DD3FC" android:strokeWidth="4.5" android:strokeLineJoin="round"
+        android:fillColor="#00000000" android:pathData="M54,29 L79,54 L54,79 L29,54 Z" />
+    <path android:fillColor="#7DD3FC" android:pathData="M54,43 L65,54 L54,65 L43,54 Z" />
+</vector>
