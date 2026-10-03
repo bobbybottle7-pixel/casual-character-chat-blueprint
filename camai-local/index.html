@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080a0d"><title>CamAI Local 1.1</title>
+<style>
+:root{color-scheme:dark;--bg:#080a0d;--panel:#10141a;--panel2:#151a21;--text:#edf1f7;--muted:#8e9aaa;--line:#242b35;--accent:#7dd3fc;--bad:#ff9b9b;--good:#9fe3b1}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}
+header{position:sticky;top:0;background:#080a0df2;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:12px 14px;z-index:2}.bar{display:flex;gap:9px;align-items:center}.brand{font-weight:800;letter-spacing:.3px}.status{font-size:12px;color:var(--muted);margin-left:auto}.panel{max-width:900px;margin:10px auto;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+select{min-width:0;flex:1;background:var(--panel2);color:var(--text);border:1px solid var(--line);padding:9px;border-radius:10px}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:10px 12px}.btn:disabled{opacity:.45}.danger{color:var(--bad)}.small{font-size:12px;color:var(--muted);line-height:1.45;margin-top:9px}
+main{max-width:900px;margin:auto;padding:16px 12px 130px}.msg{max-width:90%;padding:12px 14px;border:1px solid var(--line);border-radius:16px;margin:10px 0;white-space:pre-wrap;line-height:1.48;overflow-wrap:anywhere}.user{margin-left:auto;background:#131b24}.assistant{background:var(--panel)}.empty{color:var(--muted);text-align:center;padding:18vh 18px}.composer{position:fixed;bottom:0;left:0;right:0;background:#080a0df2;border-top:1px solid var(--line);padding:10px;backdrop-filter:blur(12px)}.row{max-width:900px;margin:auto;display:flex;gap:8px}.row textarea{flex:1;resize:none;min-height:48px;max-height:160px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:12px;outline:none}.ok{color:var(--good)}.warn{color:#ffd38a}.err{color:var(--bad)}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 7px;margin-right:5px}
+</style>
+</head>
+<body>
+<header>
+ <div class="bar"><div class="brand">◈ CamAI Local</div><div id="status" class="status">CPU engine not loaded</div><button id="new" class="btn">New</button></div>
+ <div class="panel">
+  <div class="bar">
+   <select id="model">
+    <option value="onnx-community/Qwen2.5-0.5B-Instruct">Qwen 2.5 0.5B Instruct · q4 · CPU</option>
+    <option value="onnx-community/SmolLM2-360M-Instruct-ONNX">SmolLM2 360M Instruct · q4 · CPU</option>
+   </select>
+   <button id="load" class="btn">Load local model</button><button id="clear" class="btn danger">Wipe</button>
+  </div>
+  <div id="progress" class="small">CamAI 1.1 uses Transformers.js on CPU/WASM instead of WebGPU. This bypasses the 16 KB WebGPU limit shown on your phone. First load downloads the selected model, then the browser can cache it.</div>
+ </div>
+</header>
+<main id="chat"><div class="empty" id="empty">No model loaded yet.<br><br><span class="pill">No API key</span><span class="pill">No account</span><span class="pill">Local inference</span></div></main>
+<div class="composer"><div class="row"><textarea id="input" placeholder="Talk to CamAI…" rows="1"></textarea><button id="send" class="btn" disabled>Send</button></div></div>
+<script type="module">
+import { pipeline, TextStreamer } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.0.1';
+
+const KEY='camai-local-v11';
+let generator=null, history=JSON.parse(localStorage.getItem(KEY)||'[]'), loading=false, generating=false;
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(KEY,JSON.stringify(history));}
+function render(){const c=$('chat');c.innerHTML='';if(!history.length){c.innerHTML='<div class="empty">No messages yet.<br><br><span class="pill">No API key</span><span class="pill">No account</span><span class="pill">Local inference</span></div>';return}for(const m of history){const d=document.createElement('div');d.className='msg '+m.role;d.textContent=m.content;c.appendChild(d)}window.scrollTo(0,document.body.scrollHeight)}
+function progressText(p){if(!p)return '';if(typeof p.progress==='number')return `${p.file||'Model'} · ${Math.round(p.progress*100)}%`;return p.status||p.file||'Loading…';}
+render();
+
+$('load').onclick=async()=>{
+ if(loading)return;loading=true;$('load').disabled=true;$('model').disabled=true;$('status').textContent='Loading CPU engine…';$('progress').className='small';
+ const id=$('model').value;
+ try{
+  $('progress').textContent='Starting Transformers.js. WebGPU is intentionally NOT used on this device.';
+  generator=await pipeline('text-generation',id,{device:'wasm',dtype:'q4',progress_callback:p=>{$('progress').textContent=progressText(p)||'Downloading model…'}});
+  $('status').textContent='Local CPU ready';$('status').className='status ok';$('progress').textContent='Ready. Inference stays on this device. The first response may be slow because this uses the phone CPU.';$('send').disabled=false;
+ }catch(e){console.error(e);generator=null;$('status').textContent='Load failed';$('status').className='status err';$('progress').textContent='Could not load the local CPU model: '+(e?.message||e);}
+ finally{loading=false;$('load').disabled=false;$('model').disabled=false;}
+};
+
+$('send').onclick=send;$('input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+async function send(){
+ if(!generator||generating)return;const text=$('input').value.trim();if(!text)return;$('input').value='';
+ history.push({role:'user',content:text});const ai={role:'assistant',content:''};history.push(ai);render();save();generating=true;$('send').disabled=true;$('input').disabled=true;$('status').textContent='Thinking locally…';
+ try{
+  const messages=[{role:'system',content:'You are CamAI, a direct, independent, privacy-first local AI assistant. Be useful and honest. Distinguish facts from uncertainty. Do not pretend to have tools, browsing, or knowledge you do not have. You are concise when appropriate and strong at coding and reasoning.'},...history.slice(0,-1).map(x=>({role:x.role,content:x.content})),{role:'user',content:text}];
+  const streamer=new TextStreamer(generator.tokenizer,{skip_prompt:true,callback_function:t=>{ai.content+=t;render()}});
+  await generator(messages,{max_new_tokens:384,do_sample:true,temperature:.7,top_p:.9,streamer});
+  if(!ai.content.trim()) ai.content='[The model returned no text.]';
+  save();
+ }catch(e){ai.content='Generation error: '+(e?.message||e);render();save();}
+ finally{generating=false;$('send').disabled=false;$('input').disabled=false;$('status').textContent='Local CPU ready';}
+}
+$('new').onclick=()=>{history=[];save();render()};$('clear').onclick=()=>{history=[];save();render()};
+</script>
+</body></html>
