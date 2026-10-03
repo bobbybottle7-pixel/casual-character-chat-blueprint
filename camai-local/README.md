@@ -2,7 +2,11 @@
 
 A private AI chat that runs entirely in your phone's browser. No account, no API key, no cloud AI. The model runs on the phone's CPU (Transformers.js, WASM backend), so it works on devices whose WebGPU limits are too low for WebLLM (e.g. `requested=32768, limit=16384`).
 
-## Use on Android
+## Use on Android (website, recommended)
+
+Open **https://bobbybottle7-pixel.github.io/casual-character-chat-blueprint/camai-local/** in Chrome, then tap **⋮ → Add to Home screen** (or **Install app**). It then opens like a normal app with its own icon.
+
+## Use on Android (from the ZIP)
 
 1. Extract the ZIP.
 2. Open `index.html` in Chrome.
